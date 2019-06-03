@@ -12,6 +12,7 @@
   "devDependencies": {
     "@types/react": "^16.8.19",
     "@types/react-dom": "^16.8.4",
+    "@types/styled-components": "^4.1.15",
     "copy-webpack-plugin": "^5.0.3",
     "electron-packager": "^13.1.1",
     "prettier": "^1.17.1",
