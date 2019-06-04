@@ -50,8 +50,8 @@ export default (props: Props) => {
     const endY = e.pageY > startY ? e.pageY : startY;
 
     props.onMouseUp({
-      top: fixedStartX,
-      left: fixedStartY,
+      top: fixedStartY,
+      left: fixedStartX,
       right: endX,
       bottom: endY
     });
