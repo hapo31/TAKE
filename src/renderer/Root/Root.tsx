@@ -3,7 +3,7 @@ import DragPoints from "./DragPoints/DragPoints";
 import DrawRect from "../Styled/DrawRect";
 import { Rect } from "../../utils/types";
 import CutVideoRect from "./CutVideoRect/CutVideoRect";
-import { desktopCapturer, DesktopCapturerSource } from "electron";
+import { desktopCapturer, DesktopCapturerSource, ipcRenderer } from "electron";
 
 type Props = {
   width: number;
@@ -42,6 +42,7 @@ export default (props: Props) => {
     setRight(rect.right);
     setBottom(rect.bottom);
     setMouseUp(true);
+    ipcRenderer.send("window-minimize");
     // 仮で５秒後に save 発動
     setTimeout(() => {
       setSaveVideo(true);
@@ -51,6 +52,7 @@ export default (props: Props) => {
       .getSources({ types: ["window", "screen"] })
       .then(async sources => {
         try {
+          // 型定義が間違っているので仕方なく as unknown as DesktopCapturerSource[] している
           for (const source of (sources as unknown) as DesktopCapturerSource[]) {
             if (source.name === "Screen 1") {
               const stream = await navigator.mediaDevices.getUserMedia({
