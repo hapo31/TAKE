@@ -5,6 +5,7 @@ const isDev = process.env.NODE_ENV !== "production";
 var main = {
   mode: isDev ? "development" : "production",
   target: "electron-main",
+  devtool: isDev ? "source-map" : false,
   entry: path.join(__dirname, "src", "index"),
   output: {
     filename: "index.js",
@@ -40,6 +41,7 @@ var renderer = {
   mode: isDev ? "development" : "production",
   target: "electron-renderer",
   entry: path.join(__dirname, "src", "renderer", "index"),
+  devtool: isDev ? "inline-source-map" : false,
   output: {
     filename: "index.js",
     path: path.resolve(__dirname, "dist", "scripts")
