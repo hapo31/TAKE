@@ -100,7 +100,7 @@ export default (props: Props) => {
         top={top}
         bottom={bottom}
         srcStream={videoStream}
-        frameRate={30}
+        frameRate={15}
         saving={saveVideo}
         onSaved={onSaved}
       />

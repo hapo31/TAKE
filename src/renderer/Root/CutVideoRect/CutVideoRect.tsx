@@ -15,6 +15,7 @@ type Props = {
 
 export default (props: Props) => {
   const [timer, setTimer] = useState(0);
+  // TODO: GIFEncoder はバカみたいに重いので WebWorker でやる
   const [encoder, setEncoder] = useState<GIFEncoder | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -31,6 +32,7 @@ export default (props: Props) => {
       const video = videoRef.current;
       const encoder = new GIFEncoder();
       encoder.setRepeat(0);
+      // TODO: たぶん計算方法が間違ってる
       encoder.setDelay(1000 / props.frameRate);
       encoder.start();
       setEncoder(encoder);
