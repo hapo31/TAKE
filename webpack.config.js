@@ -1,4 +1,5 @@
 const CopyWebpackPlugin = require("copy-webpack-plugin");
+const webpack = require("webpack");
 const path = require("path");
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -31,6 +32,10 @@ var main = {
     extensions: [".js", ".ts"]
   },
   plugins: [
+    // Module not found: Error: Can't resolve './lib-cov/fluent-ffmpeg' が出るのを防ぐ
+    new webpack.DefinePlugin({
+      "process.env.FLUENTFFMPEG_COV": false
+    }),
     new CopyWebpackPlugin([
       {
         from: path.join(__dirname, "src", "renderer", "index.html")
@@ -64,9 +69,22 @@ var renderer = {
     ]
   },
   plugins: [
+    // Module not found: Error: Can't resolve './lib-cov/fluent-ffmpeg' が出るのを防ぐ
+    new webpack.DefinePlugin({
+      "process.env.FLUENTFFMPEG_COV": false
+    }),
     new CopyWebpackPlugin([
       {
-        from: path.join(__dirname, "node_modules", "whammy", "whammy.js")
+        from: path.join(__dirname, "node_modules", "jsgif", "GIFEncoder.js")
+      },
+      {
+        from: path.join(__dirname, "node_modules", "jsgif", "LZWEncoder.js")
+      },
+      {
+        from: path.join(__dirname, "node_modules", "jsgif", "NeuQuant.js")
+      },
+      {
+        from: path.join(__dirname, "node_modules", "jsgif", "b64.js")
       }
     ])
   ]

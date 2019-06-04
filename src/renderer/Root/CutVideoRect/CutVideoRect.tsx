@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ipcRenderer } from "electron";
+import encode64 from "../../../utils/b64";
 
 type Props = {
   left: number;
@@ -14,25 +15,24 @@ type Props = {
 
 export default (props: Props) => {
   const [timer, setTimer] = useState(0);
-  const [encoder, setEncoder] = useState<Whammy.Video | null>(null);
+  const [encoder, setEncoder] = useState<GIFEncoder | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (props.saving && encoder) {
-      const blob = encoder.compile();
-      const filereader = new FileReader();
-      filereader.readAsDataURL(blob);
-      filereader.onloadend = () => {
-        const b64 = filereader.result;
-        ipcRenderer.send("compile-webm", b64);
-        props.onSaved();
-      };
+      encoder.finish();
+      const b64 = encode64(encoder.stream().getData());
+      ipcRenderer.send("send-blob", b64);
+      props.onSaved();
     }
     if (props.srcStream && videoRef && videoRef.current) {
       const video = videoRef.current;
-      const encoder = new Whammy.Video(props.frameRate);
+      const encoder = new GIFEncoder();
+      encoder.setRepeat(0);
+      encoder.setDelay(1000 / props.frameRate);
+      encoder.start();
       setEncoder(encoder);
       video.srcObject = props.srcStream;
       if (timer !== 0) {
@@ -58,7 +58,7 @@ export default (props: Props) => {
                 width,
                 height
               );
-              encoder.add(ctx);
+              encoder.addFrame(ctx);
             }
           }
         }, 1000 / props.frameRate)

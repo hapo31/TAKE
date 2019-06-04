@@ -8,10 +8,15 @@ import {
   dialog
 } from "electron";
 import fs from "fs";
+import ffmpeg from "fluent-ffmpeg";
+import tempfile from "tempfile";
+
 class MyApp {
   private mainWindow: BrowserWindow | null = null;
   private app: App;
   private mainURL: string = `file://${__dirname}/index.html`;
+
+  private isDebug = false;
 
   constructor(app: App) {
     this.app = app;
@@ -25,7 +30,6 @@ class MyApp {
   }
 
   private create() {
-    const displays = screen.getAllDisplays();
     this.mainWindow = new BrowserWindow({
       title: "cap-taro",
       x: 0,
@@ -38,7 +42,7 @@ class MyApp {
       resizable: false,
       movable: false,
       skipTaskbar: true,
-      opacity: 1,
+      opacity: this.isDebug ? 1.0 : 0.3,
       webPreferences: {
         nodeIntegration: true
       }
@@ -47,7 +51,9 @@ class MyApp {
 
     this.mainWindow.loadURL(this.mainURL);
 
-    this.mainWindow.webContents.openDevTools();
+    if (this.isDebug) {
+      this.mainWindow.webContents.openDevTools();
+    }
 
     const menu = Menu.buildFromTemplate([]);
     Menu.setApplicationMenu(menu);
@@ -55,8 +61,12 @@ class MyApp {
       this.mainWindow = null;
     });
 
-    ipcMain.on("compile-webm", (e: Electron.Event, base64: string) => {
-      const blob = new Buffer(base64, "base64");
+    ipcMain.on("send-blob", (e: Electron.Event, base64: string) => {
+      const blob = Buffer.from(base64, "base64");
+      const outputFileType = "gif";
+      if (this.mainWindow && this.isDebug === false) {
+        this.mainWindow.setAlwaysOnTop(true);
+      }
       dialog.showSaveDialog(
         this.mainWindow!,
         {
@@ -64,8 +74,8 @@ class MyApp {
           defaultPath: ".",
           filters: [
             {
-              name: "WebM",
-              extensions: ["webm"]
+              name: outputFileType,
+              extensions: [outputFileType]
             }
           ]
         },
@@ -75,10 +85,47 @@ class MyApp {
               if (err) {
                 dialog.showErrorBox("error", err.message);
               }
+              if (this.mainWindow) {
+                this.mainWindow.close();
+              }
             });
+
+            // const tmpfilename = tempfile(".gif");
+            // fs.writeFile(tmpfilename, blob, async err => {
+            //   if (err) {
+            //     dialog.showErrorBox("error", err.message);
+            //   }
+            //   console.log(tmpfilename);
+            //   try {
+            //     ffmpeg(tmpfilename)
+            //       .noAudio()
+            //       .outputFormat("libx264")
+            //       .format("mp4")
+            //       .output(path)
+            //       .on("end", () => {
+            //         if (this.mainWindow) {
+            //           this.mainWindow.close();
+            //         }
+            //       })
+            //       .on("error", err => {
+            //         console.error(err);
+            //         dialog.showErrorBox("error", err.message);
+            //       });
+            //   } catch (e) {
+            //     console.error(e);
+            //   }
+            // });
           }
         }
       );
+    });
+
+    ipcMain.on("window-minimize", () => {
+      if (this.mainWindow && this.isDebug === false) {
+        this.mainWindow.setOpacity(0.0);
+        this.mainWindow.setAlwaysOnTop(false);
+        this.mainWindow.blur();
+      }
     });
   }
 

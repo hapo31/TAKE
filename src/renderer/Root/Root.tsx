@@ -44,7 +44,7 @@ export default (props: Props) => {
     setMouseUp(true);
     ipcRenderer.send("window-minimize");
     // 仮で５秒後に save 発動
-    setTimeout(() => {
+    window.setTimeout(() => {
       setSaveVideo(true);
       console.log("start save");
     }, 5000);
@@ -91,7 +91,7 @@ export default (props: Props) => {
           left={left}
           right={right}
           bottom={bottom}
-          color="black"
+          color="white"
         />
       ) : null}
       <CutVideoRect
