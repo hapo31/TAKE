@@ -1,7 +1,7 @@
 import { BrowserWindow, app, App, Menu, screen } from "electron";
 
 class MyApp {
-  private mainWindows: Array<BrowserWindow | null> = [];
+  private mainWindow: BrowserWindow | null = null;
   private app: App;
   private mainURL: string = `file://${__dirname}/index.html`;
 
@@ -18,37 +18,33 @@ class MyApp {
 
   private create() {
     const displays = screen.getAllDisplays();
-    this.mainWindows = displays.map(
-      disp =>
-        new BrowserWindow({
-          title: "cap-taro",
-          x: disp.bounds.x,
-          y: disp.bounds.y,
-          width: disp.bounds.width,
-          height: disp.bounds.height,
-          acceptFirstMouse: true,
-          frame: false,
-          alwaysOnTop: true,
-          resizable: false,
-          movable: false,
-          skipTaskbar: true
-          // opacity: 0.5
-          // titleBarStyle: "hiddenInset"
-        })
-    );
+    this.mainWindow = new BrowserWindow({
+      title: "cap-taro",
+      x: 0,
+      y: 0,
+      width: screen.getPrimaryDisplay().size.width,
+      height: screen.getPrimaryDisplay().size.height,
+      acceptFirstMouse: true,
+      frame: false,
+      alwaysOnTop: true,
+      resizable: false,
+      movable: false,
+      skipTaskbar: true,
+      opacity: 1,
+      webPreferences: {
+        nodeIntegration: true
+      }
+      // titleBarStyle: "hiddenInset"
+    });
 
-    this.mainWindows.forEach(win =>
-      win ? win.loadURL(this.mainURL) && win.webContents.openDevTools() : false
-    );
+    this.mainWindow.loadURL(this.mainURL);
+
+    this.mainWindow.webContents.openDevTools();
 
     const menu = Menu.buildFromTemplate([]);
     Menu.setApplicationMenu(menu);
-    this.mainWindows.forEach((win, index) => {
-      if (win) {
-        win.on("closed", () => {
-          this.mainWindows[index] = null;
-        });
-      }
+    this.mainWindow.on("closed", () => {
+      this.mainWindow = null;
     });
   }
 
@@ -57,7 +53,7 @@ class MyApp {
   }
 
   private onActivated() {
-    if (this.mainWindows.every(win => win === null)) {
+    if (this.mainWindow !== null) {
       this.create();
     }
   }
