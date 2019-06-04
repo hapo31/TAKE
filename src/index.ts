@@ -1,5 +1,13 @@
-import { BrowserWindow, app, App, Menu, screen } from "electron";
-
+import {
+  BrowserWindow,
+  app,
+  App,
+  Menu,
+  screen,
+  ipcMain,
+  dialog
+} from "electron";
+import fs from "fs";
 class MyApp {
   private mainWindow: BrowserWindow | null = null;
   private app: App;
@@ -45,6 +53,32 @@ class MyApp {
     Menu.setApplicationMenu(menu);
     this.mainWindow.on("closed", () => {
       this.mainWindow = null;
+    });
+
+    ipcMain.on("compile-webm", (e: Electron.Event, base64: string) => {
+      const blob = new Buffer(base64, "base64");
+      dialog.showSaveDialog(
+        this.mainWindow!,
+        {
+          title: "save",
+          defaultPath: ".",
+          filters: [
+            {
+              name: "WebM",
+              extensions: ["webm"]
+            }
+          ]
+        },
+        (path?: string) => {
+          if (path) {
+            fs.writeFile(path, blob, err => {
+              if (err) {
+                dialog.showErrorBox("error", err.message);
+              }
+            });
+          }
+        }
+      );
     });
   }
 

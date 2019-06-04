@@ -42,11 +42,18 @@ export default (props: Props) => {
     setDragging(false);
     setStartX(-1);
     setStartY(-1);
+
+    const fixedStartX = startX <= e.pageX ? startX : e.pageX;
+    const endX = e.pageX > startX ? e.pageX : startX;
+
+    const fixedStartY = startY <= e.pageY ? startY : e.pageY;
+    const endY = e.pageY > startY ? e.pageY : startY;
+
     props.onMouseUp({
-      top: startY,
-      left: startX,
-      right: e.pageX,
-      bottom: e.pageY
+      top: fixedStartX,
+      left: fixedStartY,
+      right: endX,
+      bottom: endY
     });
   };
 

@@ -2,6 +2,8 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const path = require("path");
 const isDev = process.env.NODE_ENV !== "production";
 
+const outputPath = path.join(__dirname, "dist");
+
 var main = {
   mode: isDev ? "development" : "production",
   target: "electron-main",
@@ -9,7 +11,7 @@ var main = {
   entry: path.join(__dirname, "src", "index"),
   output: {
     filename: "index.js",
-    path: path.resolve(__dirname, "dist")
+    path: outputPath
   },
   node: {
     __dirname: false,
@@ -44,7 +46,7 @@ var renderer = {
   devtool: isDev ? "inline-source-map" : false,
   output: {
     filename: "index.js",
-    path: path.resolve(__dirname, "dist", "scripts")
+    path: path.resolve(outputPath, "scripts")
   },
   resolve: {
     extensions: [".json", ".js", ".jsx", ".css", ".ts", ".tsx"]
@@ -60,7 +62,14 @@ var renderer = {
         ]
       }
     ]
-  }
+  },
+  plugins: [
+    new CopyWebpackPlugin([
+      {
+        from: path.join(__dirname, "node_modules", "whammy", "whammy.js")
+      }
+    ])
+  ]
 };
 
 module.exports = [main, renderer];

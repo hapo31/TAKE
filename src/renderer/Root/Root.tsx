@@ -16,6 +16,8 @@ export default (props: Props) => {
   const [right, setRight] = useState(-1);
   const [bottom, setBottom] = useState(-1);
   const [isMouseUp, setMouseUp] = useState(false);
+  const [saveVideo, setSaveVideo] = useState(false);
+
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -40,6 +42,11 @@ export default (props: Props) => {
     setRight(rect.right);
     setBottom(rect.bottom);
     setMouseUp(true);
+    // 仮で５秒後に save 発動
+    setTimeout(() => {
+      setSaveVideo(true);
+      console.log("start save");
+    }, 5000);
     desktopCapturer
       .getSources({ types: ["window", "screen"] })
       .then(async sources => {
@@ -62,6 +69,10 @@ export default (props: Props) => {
           console.error(e);
         }
       });
+  };
+
+  const onSaved = () => {
+    setSaveVideo(false);
   };
 
   return (
@@ -88,6 +99,8 @@ export default (props: Props) => {
         bottom={bottom}
         srcStream={videoStream}
         frameRate={30}
+        saving={saveVideo}
+        onSaved={onSaved}
       />
     </DragPoints>
   );
