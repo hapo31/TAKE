@@ -10,6 +10,7 @@ import {
 import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
 import tempfile from "tempfile";
+import SendBlobEvent from "./utils/SendBlobEvent";
 
 class MyApp {
   private mainWindow: BrowserWindow | null = null;
@@ -61,9 +62,18 @@ class MyApp {
       this.mainWindow = null;
     });
 
-    ipcMain.on("send-blob", (e: Electron.Event, base64: string) => {
-      const blob = Buffer.from(base64, "base64");
-      const outputFileType = "gif";
+    ipcMain.on("send-blob", (e: Electron.Event, data: SendBlobEvent) => {
+      const fixedWidth =
+        data.width % 16 === 0
+          ? data.width
+          : data.width + (16 - (data.width % 16));
+      const fixedHeight =
+        data.height % 16 === 0
+          ? data.height
+          : data.height + (16 - (data.height % 16));
+
+      const blob = Buffer.from(data.base64, "base64");
+      const outputFileType = "mp4";
       if (this.mainWindow && this.isDebug === false) {
         this.mainWindow.setAlwaysOnTop(true);
       }
@@ -95,26 +105,36 @@ class MyApp {
             //   if (err) {
             //     dialog.showErrorBox("error", err.message);
             //   }
-            //   console.log(tmpfilename);
             //   try {
             //     ffmpeg(tmpfilename)
-            //       .noAudio()
-            //       .outputFormat("libx264")
-            //       .format("mp4")
+            //       .addOption("-pix_fmt", "yuv420p")
+            //       .size(`${fixedWidth}x${fixedHeight}`)
+            //       .videoCodec("libx264")
             //       .output(path)
             //       .on("end", () => {
-            //         if (this.mainWindow) {
-            //           this.mainWindow.close();
-            //         }
+            //         fs.unlink(tmpfilename, err => {
+            //           this.safeCloseMainWindow();
+            //           if (err) {
+            //             console.error(err);
+            //             dialog.showErrorBox("error", err.message);
+            //             this.safeCloseMainWindow();
+            //           }
+            //         });
             //       })
             //       .on("error", err => {
             //         console.error(err);
             //         dialog.showErrorBox("error", err.message);
-            //       });
+            //         this.safeCloseMainWindow();
+            //       })
+            //       .run();
             //   } catch (e) {
             //     console.error(e);
+            //     this.safeCloseMainWindow();
             //   }
             // });
+          } else {
+            // キャンセル時の挙動
+            this.safeCloseMainWindow();
           }
         }
       );
@@ -136,6 +156,12 @@ class MyApp {
   private onActivated() {
     if (this.mainWindow !== null) {
       this.create();
+    }
+  }
+
+  private safeCloseMainWindow() {
+    if (this.mainWindow) {
+      this.mainWindow.close();
     }
   }
 }

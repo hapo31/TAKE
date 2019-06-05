@@ -40,8 +40,6 @@ export default (props: Props) => {
 
   const onMouseUp = (e: React.MouseEvent) => {
     setDragging(false);
-    setStartX(-1);
-    setStartY(-1);
 
     const fixedStartX = startX <= e.pageX ? startX : e.pageX;
     const endX = e.pageX > startX ? e.pageX : startX;
@@ -55,6 +53,8 @@ export default (props: Props) => {
       right: endX,
       bottom: endY
     });
+    setStartX(-1);
+    setStartY(-1);
   };
 
   return (

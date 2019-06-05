@@ -29,8 +29,13 @@ export default (props: Props) => {
       // Worker でGIFの処理をする
       // TODO: 何故かそんなに早くなってない…
       const worker = new Worker("./scripts/worker.js");
+
       worker.addEventListener("message", e => {
-        ipcRenderer.send("send-blob", e.data);
+        ipcRenderer.send("send-blob", {
+          base64: e.data,
+          width,
+          height
+        });
         props.onSaved();
       });
 
@@ -62,7 +67,6 @@ export default (props: Props) => {
       if (timer !== 0) {
         clearInterval(timer);
       }
-
       setTimer(
         window.setInterval(() => {
           if (canvasRef && canvasRef.current) {
@@ -110,11 +114,7 @@ export default (props: Props) => {
             height={window.parent.screen.height}
             style={{ display: "none" }}
           />
-          <canvas
-            ref={canvasRef}
-            width={props.right - props.left}
-            height={props.bottom - props.top}
-          />
+          <canvas ref={canvasRef} width={width} height={height} />
         </>
       ) : null}
     </>

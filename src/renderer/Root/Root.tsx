@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import DragPoints from "./DragPoints/DragPoints";
 import DrawRect from "../Styled/DrawRect";
 import { Rect } from "../../utils/types";
@@ -11,43 +11,44 @@ type Props = {
 };
 
 export default (props: Props) => {
-  const [left, setLeft] = useState(-1);
-  const [top, setTop] = useState(-1);
-  const [right, setRight] = useState(-1);
-  const [bottom, setBottom] = useState(-1);
+  const [rect, setRect] = useState({
+    left: -1,
+    top: -1,
+    right: -1,
+    bottom: -1
+  });
   const [isMouseUp, setMouseUp] = useState(false);
   const [saveVideo, setSaveVideo] = useState(false);
 
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   const onMouseDown = (rect: Rect) => {
+    if (saveVideo) {
+      return;
+    }
     setVideoStream(null);
-    setLeft(rect.left);
-    setTop(rect.top);
-    setRight(rect.right);
-    setBottom(rect.bottom);
+    setRect(rect);
   };
 
   const onMouseDrag = (rect: Rect) => {
-    setLeft(rect.left);
-    setTop(rect.top);
-    setRight(rect.right);
-    setBottom(rect.bottom);
+    if (saveVideo) {
+      return;
+    }
+    setRect(rect);
   };
 
   const onMouseUp = (rect: Rect) => {
-    setLeft(rect.left);
-    setTop(rect.top);
-    setRight(rect.right);
-    setBottom(rect.bottom);
+    if (saveVideo) {
+      return;
+    }
+    setRect(rect);
     setMouseUp(true);
     ipcRenderer.send("window-minimize");
-    // 仮で５秒後に save 発動
+    // 仮で10秒後に save 発動
     window.setTimeout(() => {
       setSaveVideo(true);
       console.log("start save");
-    }, 5000);
+    }, 10 * 1000);
     desktopCapturer
       .getSources({ types: ["window", "screen"] })
       .then(async sources => {
@@ -75,6 +76,7 @@ export default (props: Props) => {
 
   const onSaved = () => {
     setSaveVideo(false);
+    setVideoStream(null);
   };
 
   return (
@@ -87,18 +89,18 @@ export default (props: Props) => {
         <DrawRect
           width={props.width}
           height={props.height}
-          top={top}
-          left={left}
-          right={right}
-          bottom={bottom}
+          top={rect.top}
+          left={rect.left}
+          right={rect.right}
+          bottom={rect.bottom}
           color="white"
         />
       ) : null}
       <CutVideoRect
-        left={left}
-        right={right}
-        top={top}
-        bottom={bottom}
+        left={rect.left}
+        right={rect.right}
+        top={rect.top}
+        bottom={rect.bottom}
         srcStream={videoStream}
         frameRate={15}
         saving={saveVideo}
