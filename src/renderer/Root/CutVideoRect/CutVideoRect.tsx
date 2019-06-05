@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ipcRenderer } from "electron";
 import encode64 from "../../../utils/b64";
+import { GIFEncodeAdd, GIFEncodeStart } from "../../../utils/GIFEncoderEvent";
 
 type Props = {
   left: number;
@@ -15,27 +16,48 @@ type Props = {
 
 export default (props: Props) => {
   const [timer, setTimer] = useState(0);
-  // TODO: GIFEncoder はバカみたいに重いので WebWorker でやる
-  const [encoder, setEncoder] = useState<GIFEncoder | null>(null);
+  const [worker, setWorker] = useState<Worker | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  const width = props.right - props.left;
+  const height = props.bottom - props.top;
+
   useEffect(() => {
-    if (props.saving && encoder) {
-      encoder.finish();
-      const b64 = encode64(encoder.stream().getData());
-      ipcRenderer.send("send-blob", b64);
-      props.onSaved();
+    if (worker === null) {
+      // Worker でGIFの処理をする
+      // TODO: 何故かそんなに早くなってない…
+      const worker = new Worker("./scripts/worker.js");
+      worker.addEventListener("message", e => {
+        ipcRenderer.send("send-blob", e.data);
+        props.onSaved();
+      });
+
+      setWorker(worker);
+    }
+
+    if (props.saving && worker) {
+      worker.postMessage({ type: "GIFEncodeFinish" });
+      if (timer !== 0) {
+        clearInterval(timer);
+        setTimer(0);
+      }
     }
     if (props.srcStream && videoRef && videoRef.current) {
       const video = videoRef.current;
-      const encoder = new GIFEncoder();
-      encoder.setRepeat(0);
-      // TODO: たぶん計算方法が間違ってる
-      encoder.setDelay(1000 / props.frameRate);
-      encoder.start();
-      setEncoder(encoder);
+
+      if (worker) {
+        worker.postMessage({
+          type: "GIFEncodeStart",
+          width,
+          height,
+          quality: 20,
+          // TODO: たぶん計算方法が間違ってる
+          delay: 1000 / props.frameRate,
+          repeat: 0
+        } as GIFEncodeStart);
+      }
       video.srcObject = props.srcStream;
       if (timer !== 0) {
         clearInterval(timer);
@@ -47,8 +69,6 @@ export default (props: Props) => {
             const canvas = canvasRef.current;
             const ctx = canvas.getContext("2d");
             if (ctx) {
-              const width = props.right - props.left;
-              const height = props.bottom - props.top;
               ctx.drawImage(
                 video,
                 props.left,
@@ -60,7 +80,12 @@ export default (props: Props) => {
                 width,
                 height
               );
-              encoder.addFrame(ctx);
+              if (worker) {
+                worker.postMessage({
+                  type: "GIFEncodeAdd",
+                  imageData: ctx.getImageData(0, 0, width, height)
+                } as GIFEncodeAdd);
+              }
             }
           }
         }, 1000 / props.frameRate)
