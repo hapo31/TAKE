@@ -43,6 +43,7 @@ class MyApp {
       resizable: false,
       movable: false,
       skipTaskbar: true,
+      transparent: true,
       opacity: this.isDebug ? 1.0 : 0.3,
       webPreferences: {
         nodeIntegration: true

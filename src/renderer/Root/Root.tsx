@@ -55,7 +55,8 @@ export default (props: Props) => {
         try {
           // 型定義が間違っているので仕方なく as unknown as DesktopCapturerSource[] している
           for (const source of (sources as unknown) as DesktopCapturerSource[]) {
-            if (source.name === "Screen 1") {
+            // TODO: Primary display name different in Operationg Systems
+            if (source.name === "Screen 1" || source.name === "Entire screen"){
               const stream = await navigator.mediaDevices.getUserMedia({
                 audio: false,
                 video: {
