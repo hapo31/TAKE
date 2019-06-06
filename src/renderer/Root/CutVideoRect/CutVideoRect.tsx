@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ipcRenderer } from "electron";
 import { GIFEncodeAdd, GIFEncodeStart } from "../../../utils/GIFEncoderEvent";
 import SendBlobEvent from "../../../utils/SendBlobEvent";
 
