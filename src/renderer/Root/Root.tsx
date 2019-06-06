@@ -4,6 +4,7 @@ import DrawRect from "../Styled/DrawRect";
 import { Rect } from "../../utils/types";
 import CutVideoRect from "./CutVideoRect/CutVideoRect";
 import { desktopCapturer, DesktopCapturerSource, ipcRenderer } from "electron";
+import SendBlobEvent from "../../utils/SendBlobEvent";
 
 type Props = {
   width: number;
@@ -56,7 +57,7 @@ export default (props: Props) => {
           // 型定義が間違っているので仕方なく as unknown as DesktopCapturerSource[] している
           for (const source of (sources as unknown) as DesktopCapturerSource[]) {
             // TODO: Primary display name different in Operationg Systems
-            if (source.name === "Screen 1" || source.name === "Entire screen"){
+            if (source.name === "Screen 1" || source.name === "Entire screen") {
               const stream = await navigator.mediaDevices.getUserMedia({
                 audio: false,
                 video: {
@@ -75,7 +76,12 @@ export default (props: Props) => {
       });
   };
 
-  const onSaved = () => {
+  const onSave = (ev: SendBlobEvent) => {
+    ipcRenderer.send("send-blob", {
+      base64: ev.base64,
+      width: ev.width,
+      height: ev.height
+    });
     setSaveVideo(false);
     setVideoStream(null);
   };
@@ -105,7 +111,7 @@ export default (props: Props) => {
         srcStream={videoStream}
         frameRate={15}
         saving={saveVideo}
-        onSaved={onSaved}
+        onSave={onSave}
       />
     </DragPoints>
   );

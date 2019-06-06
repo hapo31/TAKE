@@ -9,7 +9,7 @@ type Props = {
   right: number;
   bottom: number;
   saving: boolean;
-  onSaved: () => void;
+  onSave: (ev: SendBlobEvent) => void;
   frameRate: number;
   srcStream: MediaStream | null;
 };
@@ -31,13 +31,7 @@ export default (props: Props) => {
       const worker = new Worker("./scripts/worker.js");
 
       worker.addEventListener("message", e => {
-        const data: SendBlobEvent = e.data;
-        ipcRenderer.send("send-blob", {
-          base64: data.base64,
-          width: data.width,
-          height: data.height
-        });
-        props.onSaved();
+        props.onSave(e.data);
       });
 
       setWorker(worker);
