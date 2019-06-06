@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
-import { GIFEncodeAdd, GIFEncodeStart } from "../../../utils/GIFEncoderEvent";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import SendBlobEvent from "../../../utils/SendBlobEvent";
+import blobToBase64 from "../../../utils/blobToBase64";
 
 type Props = {
   left: number;
@@ -8,6 +8,7 @@ type Props = {
   right: number;
   bottom: number;
   saving: boolean;
+  onStart: () => void;
   onSave: (ev: SendBlobEvent) => void;
   frameRate: number;
   srcStream: MediaStream | null;
@@ -15,7 +16,7 @@ type Props = {
 
 export default (props: Props) => {
   const [timer, setTimer] = useState(0);
-  const [worker, setWorker] = useState<Worker | null>(null);
+  const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -24,38 +25,23 @@ export default (props: Props) => {
   const height = props.bottom - props.top;
 
   useEffect(() => {
-    if (worker === null) {
-      // Worker でGIFの処理をする
-      // TODO: 何故かそんなに早くなってない…
-      const worker = new Worker("./scripts/worker.js");
-
-      worker.addEventListener("message", e => {
-        props.onSave(e.data);
+    if (recorder === null && canvasRef && canvasRef.current) {
+      const recorder = new MediaRecorder(canvasRef.current.captureStream());
+      recorder.addEventListener("dataavailable", async e => {
+        if (canvasRef.current && recorder) {
+          const base64 = await blobToBase64(e.data);
+          props.onSave({
+            width: canvasRef.current.width,
+            height: canvasRef.current.height,
+            base64: base64
+          });
+        }
       });
-
-      setWorker(worker);
-    }
-
-    if (props.saving && worker) {
-      worker.postMessage({ type: "GIFEncodeFinish" });
-      if (timer !== 0) {
-        clearInterval(timer);
-        setTimer(0);
-      }
+      recorder.start();
+      setRecorder(recorder);
     }
     if (props.srcStream && videoRef && videoRef.current) {
       const video = videoRef.current;
-      if (worker) {
-        worker.postMessage({
-          type: "GIFEncodeStart",
-          width,
-          height,
-          quality: 20,
-          // TODO: たぶん計算方法が間違ってる
-          delay: 1000 / props.frameRate,
-          repeat: 0
-        } as GIFEncodeStart);
-      }
       video.srcObject = props.srcStream;
       if (timer !== 0) {
         clearInterval(timer);
@@ -77,23 +63,31 @@ export default (props: Props) => {
                 width,
                 height
               );
-              if (worker) {
-                worker.postMessage({
-                  type: "GIFEncodeAdd",
-                  imageData: ctx.getImageData(0, 0, width, height)
-                } as GIFEncodeAdd);
-              }
             }
           }
         }, 1000 / props.frameRate)
       );
       video.onloadedmetadata = () => video.play();
+      props.onStart();
     }
 
+    if (props.saving && recorder) {
+      if (recorder.state === "recording") {
+        recorder.stop();
+      }
+      if (timer !== 0) {
+        clearInterval(timer);
+        setTimer(0);
+      }
+    }
     return () => {
       if (timer !== 0) {
         clearInterval(timer);
       }
+      if (recorder && recorder.state === "recording") {
+        recorder.stop();
+      }
+      setRecorder(null);
     };
   }, [props.srcStream, props.saving]);
 

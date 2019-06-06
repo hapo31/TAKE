@@ -5,7 +5,8 @@ import {
   Menu,
   screen,
   ipcMain,
-  dialog
+  dialog,
+  globalShortcut
 } from "electron";
 import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
@@ -74,10 +75,8 @@ class MyApp {
           ? data.height
           : data.height + (16 - (data.height % 16));
 
-      console.log(`${fixedWidth}x${fixedHeight}`);
-
       const blob = Buffer.from(data.base64, "base64");
-      const outputFileType = isConvertToMp4 ? "mp4" : "gif";
+      const outputFileType = "mp4";
       if (this.mainWindow && this.isDebug === false) {
         this.mainWindow.setAlwaysOnTop(true);
       }
@@ -151,6 +150,16 @@ class MyApp {
         this.mainWindow.setOpacity(0.0);
         this.mainWindow.setAlwaysOnTop(false);
         this.mainWindow.blur();
+      }
+    });
+
+    ipcMain.on("app-exit", () => {
+      this.safeCloseMainWindow();
+    });
+
+    globalShortcut.register("Escape", () => {
+      if (this.mainWindow) {
+        this.mainWindow.webContents.send("shortcut-key", { key: "Escape" });
       }
     });
   }
