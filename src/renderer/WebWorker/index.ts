@@ -6,6 +6,8 @@ import {
 import encode64 from "../../utils/b64";
 
 let encoder: GIFEncoder | null = null;
+let width = 0;
+let height = 0;
 
 const base = location.href.substring(
   0,
@@ -21,6 +23,8 @@ importScripts(
 self.addEventListener("message", e => {
   if (isGIFEncodeStart(e.data)) {
     encoder = new GIFEncoder();
+    width = e.data.width;
+    height = e.data.height;
     encoder.setSize(e.data.width, e.data.height);
     encoder.setQuality(e.data.quality);
     encoder.setDelay(e.data.delay);
@@ -34,7 +38,7 @@ self.addEventListener("message", e => {
     if (encoder) {
       encoder.finish();
       const b64 = encode64(encoder.stream().getData());
-      self.postMessage(b64, (null as any) as string);
+      self.postMessage({ base64: b64, width, height }, (null as any) as string);
     }
     encoder = null;
   }

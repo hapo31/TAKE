@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ipcRenderer } from "electron";
-import encode64 from "../../../utils/b64";
 import { GIFEncodeAdd, GIFEncodeStart } from "../../../utils/GIFEncoderEvent";
+import SendBlobEvent from "../../../utils/SendBlobEvent";
 
 type Props = {
   left: number;
@@ -31,10 +31,11 @@ export default (props: Props) => {
       const worker = new Worker("./scripts/worker.js");
 
       worker.addEventListener("message", e => {
+        const data: SendBlobEvent = e.data;
         ipcRenderer.send("send-blob", {
-          base64: e.data,
-          width,
-          height
+          base64: data.base64,
+          width: data.width,
+          height: data.height
         });
         props.onSaved();
       });
@@ -51,7 +52,6 @@ export default (props: Props) => {
     }
     if (props.srcStream && videoRef && videoRef.current) {
       const video = videoRef.current;
-
       if (worker) {
         worker.postMessage({
           type: "GIFEncodeStart",

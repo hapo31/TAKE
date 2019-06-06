@@ -73,6 +73,8 @@ class MyApp {
           ? data.height
           : data.height + (16 - (data.height % 16));
 
+      console.log(`${fixedWidth}x${fixedHeight}`);
+
       const blob = Buffer.from(data.base64, "base64");
       const outputFileType = "mp4";
       if (this.mainWindow && this.isDebug === false) {
