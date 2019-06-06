@@ -64,6 +64,7 @@ class MyApp {
     });
 
     ipcMain.on("send-blob", (e: Electron.Event, data: SendBlobEvent) => {
+      const isConvertToMp4 = true;
       const fixedWidth =
         data.width % 16 === 0
           ? data.width
@@ -76,7 +77,7 @@ class MyApp {
       console.log(`${fixedWidth}x${fixedHeight}`);
 
       const blob = Buffer.from(data.base64, "base64");
-      const outputFileType = "mp4";
+      const outputFileType = isConvertToMp4 ? "mp4" : "gif";
       if (this.mainWindow && this.isDebug === false) {
         this.mainWindow.setAlwaysOnTop(true);
       }
@@ -94,47 +95,49 @@ class MyApp {
         },
         (path?: string) => {
           if (path) {
-            fs.writeFile(path, blob, err => {
-              if (err) {
-                dialog.showErrorBox("error", err.message);
-              }
-              if (this.mainWindow) {
-                this.mainWindow.close();
-              }
-            });
-
-            // const tmpfilename = tempfile(".gif");
-            // fs.writeFile(tmpfilename, blob, async err => {
-            //   if (err) {
-            //     dialog.showErrorBox("error", err.message);
-            //   }
-            //   try {
-            //     ffmpeg(tmpfilename)
-            //       .addOption("-pix_fmt", "yuv420p")
-            //       .size(`${fixedWidth}x${fixedHeight}`)
-            //       .videoCodec("libx264")
-            //       .output(path)
-            //       .on("end", () => {
-            //         fs.unlink(tmpfilename, err => {
-            //           this.safeCloseMainWindow();
-            //           if (err) {
-            //             console.error(err);
-            //             dialog.showErrorBox("error", err.message);
-            //             this.safeCloseMainWindow();
-            //           }
-            //         });
-            //       })
-            //       .on("error", err => {
-            //         console.error(err);
-            //         dialog.showErrorBox("error", err.message);
-            //         this.safeCloseMainWindow();
-            //       })
-            //       .run();
-            //   } catch (e) {
-            //     console.error(e);
-            //     this.safeCloseMainWindow();
-            //   }
-            // });
+            if (!isConvertToMp4) {
+              fs.writeFile(path, blob, err => {
+                if (err) {
+                  dialog.showErrorBox("error", err.message);
+                }
+                if (this.mainWindow) {
+                  this.mainWindow.close();
+                }
+              });
+            } else {
+              const tmpfilename = tempfile(".gif");
+              fs.writeFile(tmpfilename, blob, async err => {
+                if (err) {
+                  dialog.showErrorBox("error", err.message);
+                }
+                try {
+                  ffmpeg(tmpfilename)
+                    .addOption("-pix_fmt", "yuv420p")
+                    .size(`${fixedWidth}x${fixedHeight}`)
+                    .videoCodec("libx264")
+                    .output(path)
+                    .on("end", () => {
+                      fs.unlink(tmpfilename, err => {
+                        this.safeCloseMainWindow();
+                        if (err) {
+                          console.error(err);
+                          dialog.showErrorBox("error", err.message);
+                          this.safeCloseMainWindow();
+                        }
+                      });
+                    })
+                    .on("error", err => {
+                      console.error(err);
+                      dialog.showErrorBox("error", err.message);
+                      this.safeCloseMainWindow();
+                    })
+                    .run();
+                } catch (e) {
+                  console.error(e);
+                  this.safeCloseMainWindow();
+                }
+              });
+            }
           } else {
             // キャンセル時の挙動
             this.safeCloseMainWindow();
