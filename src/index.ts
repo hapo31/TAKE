@@ -15,6 +15,7 @@ import SendBlobEvent from "./utils/SendBlobEvent";
 
 class MyApp {
   private mainWindow: BrowserWindow | null = null;
+  private windows: (BrowserWindow | null)[] | null = null;
   private app: App;
   private mainURL: string = `file://${__dirname}/index.html`;
 
@@ -33,12 +34,8 @@ class MyApp {
   }
 
   private create() {
-    this.mainWindow = new BrowserWindow({
+    const windowCommonOptions = {
       title: "cap-taro",
-      x: 0,
-      y: 0,
-      width: screen.getPrimaryDisplay().size.width,
-      height: screen.getPrimaryDisplay().size.height,
       acceptFirstMouse: true,
       frame: false,
       alwaysOnTop: true,
@@ -50,19 +47,45 @@ class MyApp {
       webPreferences: {
         nodeIntegration: true
       }
-      // titleBarStyle: "hiddenInset"
+    };
+
+    const displays = screen.getAllDisplays();
+
+    this.windows = displays.map(display => {
+      const bw = new BrowserWindow({
+        ...display.bounds,
+        ...windowCommonOptions
+      });
+      if (display.id === screen.getPrimaryDisplay().id) {
+        this.mainWindow = bw;
+      }
+      return bw;
     });
 
-    this.mainWindow.loadURL(this.mainURL);
+    this.windows.forEach(window => {
+      if (window) {
+        window.loadURL(this.mainURL);
+      }
+    });
 
     if (this.isDebug) {
-      this.mainWindow.webContents.openDevTools();
+      this.windows.forEach(window => {
+        if (window) {
+          window.webContents.openDevTools();
+        }
+      });
     }
 
     const menu = Menu.buildFromTemplate([]);
     Menu.setApplicationMenu(menu);
-    this.mainWindow.on("closed", () => {
-      this.mainWindow = null;
+
+    this.windows.forEach(window => {
+      if (window) {
+        // 1個でもウインドウが手動で閉じられたら終了する
+        window.on("closed", () => {
+          this.applicationExit();
+        });
+      }
     });
 
     ipcMain.on("send-blob", (e: Electron.Event, data: SendBlobEvent) => {
@@ -77,8 +100,12 @@ class MyApp {
 
       const blob = Buffer.from(data.base64, "base64");
       const outputFileType = "mp4";
-      if (this.mainWindow && this.isDebug === false) {
-        this.mainWindow.setAlwaysOnTop(true);
+      if (this.windows && this.isDebug === false) {
+        this.windows.forEach(window => {
+          if (window) {
+            window.setAlwaysOnTop(true);
+          }
+        });
       }
       dialog.showSaveDialog(
         this.mainWindow!,
@@ -117,29 +144,29 @@ class MyApp {
                     .output(path)
                     .on("end", () => {
                       fs.unlink(tmpfilename, err => {
-                        this.safeCloseMainWindow();
+                        this.applicationExit();
                         if (err) {
                           console.error(err);
                           dialog.showErrorBox("error", err.message);
-                          this.safeCloseMainWindow();
+                          this.applicationExit();
                         }
                       });
                     })
                     .on("error", err => {
                       console.error(err);
                       dialog.showErrorBox("error", err.message);
-                      this.safeCloseMainWindow();
+                      this.applicationExit();
                     })
                     .run();
                 } catch (e) {
                   console.error(e);
-                  this.safeCloseMainWindow();
+                  this.applicationExit();
                 }
               });
             }
           } else {
             // キャンセル時の挙動
-            this.safeCloseMainWindow();
+            this.applicationExit();
           }
         }
       );
@@ -154,7 +181,7 @@ class MyApp {
     });
 
     ipcMain.on("app-exit", () => {
-      this.safeCloseMainWindow();
+      this.applicationExit();
     });
 
     globalShortcut.register("Escape", () => {
@@ -174,9 +201,14 @@ class MyApp {
     }
   }
 
-  private safeCloseMainWindow() {
-    if (this.mainWindow) {
-      this.mainWindow.close();
+  private applicationExit() {
+    if (this.windows) {
+      this.windows.forEach((window, index, arr) => {
+        if (window) {
+          window.close();
+        }
+        arr[index] = null;
+      });
     }
   }
 }
