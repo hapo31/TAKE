@@ -19,6 +19,7 @@ class MyApp {
   private mainURL: string = `file://${__dirname}/index.html`;
 
   private isDebug = false;
+  private isUseFFmpeg = true;
 
   constructor(app: App) {
     this.app = app;
@@ -65,7 +66,6 @@ class MyApp {
     });
 
     ipcMain.on("send-blob", (e: Electron.Event, data: SendBlobEvent) => {
-      const isConvertToMp4 = true;
       const fixedWidth =
         data.width % 16 === 0
           ? data.width
@@ -94,7 +94,7 @@ class MyApp {
         },
         (path?: string) => {
           if (path) {
-            if (!isConvertToMp4) {
+            if (!this.isUseFFmpeg) {
               fs.writeFile(path, blob, err => {
                 if (err) {
                   dialog.showErrorBox("error", err.message);
@@ -104,7 +104,7 @@ class MyApp {
                 }
               });
             } else {
-              const tmpfilename = tempfile(".gif");
+              const tmpfilename = tempfile(".mp4");
               fs.writeFile(tmpfilename, blob, async err => {
                 if (err) {
                   dialog.showErrorBox("error", err.message);
