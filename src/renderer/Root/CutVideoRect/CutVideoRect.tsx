@@ -26,7 +26,10 @@ export default (props: Props) => {
 
   useEffect(() => {
     if (recorder === null && canvasRef && canvasRef.current) {
-      const recorder = new MediaRecorder(canvasRef.current.captureStream());
+      const recorder = new MediaRecorder(canvasRef.current.captureStream(), {
+        audioBitsPerSecond: 0,
+        videoBitsPerSecond: 2500 * 1024
+      });
       recorder.addEventListener("dataavailable", async e => {
         if (canvasRef.current && recorder) {
           const base64 = await blobToBase64(e.data);

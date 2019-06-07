@@ -6,6 +6,13 @@ declare interface MediaRecorderDataAvailableEvent extends Event {
   data: any;
 }
 
+interface MediaRecorderOptions {
+  mimeType?: string;
+  audioBitsPerSecond?: number;
+  videoBitsPerSecond?: number;
+  bitsPerSecond?: number;
+}
+
 interface MediaRecorderEventMap {
   dataavailable: MediaRecorderDataAvailableEvent;
   error: MediaRecorderErrorEvent;
@@ -20,9 +27,9 @@ declare class MediaRecorder extends EventTarget {
   readonly mimeType: string;
   readonly state: "inactive" | "recording" | "paused";
   readonly stream: MediaStream;
-  ignoreMutedMedia: boolean;
-  videoBitsPerSecond: number;
-  audioBitsPerSecond: number;
+  readonly ignoreMutedMedia: boolean;
+  readonly videoBitsPerSecond: number;
+  readonly audioBitsPerSecond: number;
 
   ondataavailable: (event: MediaRecorderDataAvailableEvent) => void;
   onerror: (event: MediaRecorderErrorEvent) => void;
@@ -31,7 +38,7 @@ declare class MediaRecorder extends EventTarget {
   onstart: () => void;
   onstop: () => void;
 
-  constructor(stream: MediaStream);
+  constructor(stream: MediaStream, options?: MediaRecorderOptions);
 
   start(captureIntervalInMillis?: number): void;
 
