@@ -140,7 +140,6 @@ export default (props: Props) => {
           left={rect.left}
           right={rect.right}
           bottom={rect.bottom}
-          color="white"
         />
       ) : null}
       <CutVideoRect

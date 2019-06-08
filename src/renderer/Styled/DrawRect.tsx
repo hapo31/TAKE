@@ -7,7 +7,6 @@ type Props = {
   top: number;
   right: number;
   bottom: number;
-  color: string;
 };
 
 export default (props: Props) => {
@@ -18,6 +17,23 @@ export default (props: Props) => {
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.clearRect(0, 0, props.width, props.height);
+        ctx.globalAlpha = 1.0;
+        ctx.font = "14px mono";
+        ctx.fillText(
+          `(${props.right},${props.bottom})`,
+          props.right + 5,
+          props.bottom + 15
+        );
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = "#808080";
+        ctx.fillRect(
+          props.left,
+          props.top,
+          props.right - props.left,
+          props.bottom - props.top
+        );
+
+        ctx.strokeStyle = "black";
         ctx.beginPath();
         ctx.moveTo(props.left, props.top);
         ctx.lineTo(props.right, props.top);
