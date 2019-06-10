@@ -3,7 +3,12 @@ import DragPoints from "./DragPoints/DragPoints";
 import DrawRect from "../Styled/DrawRect";
 import { Rect } from "../../utils/types";
 import CutVideoRect from "./CutVideoRect/CutVideoRect";
-import { desktopCapturer, DesktopCapturerSource, ipcRenderer } from "electron";
+import {
+  desktopCapturer,
+  DesktopCapturerSource,
+  ipcRenderer,
+  remote
+} from "electron";
 import SendBlobEvent from "../../utils/SendBlobEvent";
 import ShortCutKeyEvent from "../../utils/ShortCutKeyEvent";
 
@@ -32,8 +37,8 @@ export default (props: Props) => {
           if (isRecording) {
             setSaveVideo(true);
           } else {
-            // 録画中でなければアプリ終了
-            ipcRenderer.send("app-exit");
+            // 録画中でなければウインドウを閉じる
+            window.close();
           }
         }
       }
@@ -77,35 +82,29 @@ export default (props: Props) => {
       }
 
       setRect(rect);
-      ipcRenderer.send("window-minimize");
-      desktopCapturer
-        .getSources({ types: ["window", "screen"] })
-        .then(async sources => {
-          try {
-            // 型定義が間違っているので仕方なく as unknown as DesktopCapturerSource[] している
-            for (const source of (sources as unknown) as DesktopCapturerSource[]) {
-              // TODO: Primary display name different in Operationg Systems
-              if (
-                source.name === "Screen 1" ||
-                source.name === "Entire screen"
-              ) {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                  audio: false,
-                  video: {
-                    mandatory: {
-                      chromeMediaSource: "desktop",
-                      chromeMediaSourceId: source.id
-                    }
-                  } as any
-                });
-                setVideoStream(stream);
-                setIsRecording(true);
-              }
+      ipcRenderer.send("window-hide");
+      desktopCapturer.getSources({ types: ["screen"] }).then(async sources => {
+        try {
+          // 型定義が間違っているので仕方なく as unknown as DesktopCapturerSource[] している
+          for (const source of (sources as unknown) as DesktopCapturerSource[]) {
+            if (source.display_id.toString() === window.name) {
+              const stream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: {
+                  mandatory: {
+                    chromeMediaSource: "desktop",
+                    chromeMediaSourceId: source.id
+                  }
+                } as any
+              });
+              setVideoStream(stream);
+              setIsRecording(true);
             }
-          } catch (e) {
-            console.error(e);
           }
-        });
+        } catch (e) {
+          console.error(e);
+        }
+      });
     },
     [saveVideo, isRecording]
   );
@@ -122,9 +121,10 @@ export default (props: Props) => {
     setVideoStream(null);
   }, []);
 
-  const onStart = () => {
+  const onStart = useCallback(() => {
     const n = new Notification("cap-taro", { body: "Record started." });
-  };
+    ipcRenderer.send("start-recording");
+  }, []);
 
   return (
     <DragPoints
@@ -132,7 +132,7 @@ export default (props: Props) => {
       onMouseDrag={onMouseDrag}
       onMouseUp={onMouseUp}
     >
-      {videoStream === null ? (
+      {videoStream === null && rect.left !== -1 && rect.top !== -1 ? (
         <DrawRect
           width={props.width}
           height={props.height}

@@ -15,9 +15,12 @@ import SendBlobEvent from "./utils/SendBlobEvent";
 
 class MyApp {
   private mainWindow: BrowserWindow | null = null;
+  private windowToDisplayIdMap: Map<number, number> = new Map();
   private windows: (BrowserWindow | null)[] | null = null;
   private app: App;
   private mainURL: string = `file://${__dirname}/index.html`;
+
+  private isRecording = false;
 
   private isDebug = false;
   private isUseFFmpeg = true;
@@ -27,6 +30,16 @@ class MyApp {
     this.app.on("window-all-closed", this.onWindowAllClosed.bind(this));
     this.app.on("ready", this.create.bind(this));
     this.app.on("activate", this.onActivated.bind(this));
+  }
+
+  private onReady() {
+    this.create();
+  }
+
+  private onActivated() {
+    if (this.windows !== null) {
+      this.create();
+    }
   }
 
   private onWindowAllClosed() {
@@ -56,6 +69,8 @@ class MyApp {
         ...display.bounds,
         ...windowCommonOptions
       });
+      // 各ウインドウから id を取得出来るように、 BrowserWindow と display の id を紐付ける
+      this.windowToDisplayIdMap.set(bw.id, display.id);
       if (display.id === screen.getPrimaryDisplay().id) {
         this.mainWindow = bw;
       }
@@ -64,7 +79,9 @@ class MyApp {
 
     this.windows.forEach(window => {
       if (window) {
-        window.loadURL(this.mainURL);
+        window.loadURL(
+          `${this.mainURL}?id=${this.windowToDisplayIdMap.get(window.id)}`
+        );
       }
     });
 
@@ -83,7 +100,9 @@ class MyApp {
       if (window) {
         // 1個でもウインドウが手動で閉じられたら終了する
         window.on("closed", () => {
-          this.applicationExit();
+          if (!this.isRecording) {
+            this.applicationExit();
+          }
         });
       }
     });
@@ -102,7 +121,7 @@ class MyApp {
       const outputFileType = "mp4";
       if (this.windows && this.isDebug === false) {
         this.windows.forEach(window => {
-          if (window) {
+          if (window && !window.isDestroyed()) {
             window.setAlwaysOnTop(true);
           }
         });
@@ -126,9 +145,7 @@ class MyApp {
                 if (err) {
                   dialog.showErrorBox("error", err.message);
                 }
-                if (this.mainWindow) {
-                  this.mainWindow.close();
-                }
+                this.applicationExit();
               });
             } else {
               const tmpfilename = tempfile(".mp4");
@@ -172,44 +189,42 @@ class MyApp {
       );
     });
 
-    ipcMain.on("window-minimize", () => {
-      if (this.mainWindow && this.isDebug === false) {
-        this.mainWindow.setOpacity(0.0);
-        this.mainWindow.setAlwaysOnTop(false);
-        this.mainWindow.blur();
+    ipcMain.on("window-hide", (e: Electron.Event) => {
+      if (this.windows && this.isDebug === false) {
+        this.windows.forEach(window => {
+          if (window) {
+            window.setOpacity(0.0);
+            window.setAlwaysOnTop(false);
+            window.blur();
+          }
+        });
       }
     });
 
-    ipcMain.on("app-exit", () => {
-      this.applicationExit();
+    ipcMain.on("start-recording", () => {
+      this.isRecording = true;
     });
 
     globalShortcut.register("Escape", () => {
-      if (this.mainWindow) {
-        this.mainWindow.webContents.send("shortcut-key", { key: "Escape" });
+      if (this.windows) {
+        this.windows.forEach(window => {
+          if (window) {
+            window.webContents.send("shortcut-key", { key: "Escape" });
+          }
+        });
       }
     });
-  }
-
-  private onReady() {
-    this.create();
-  }
-
-  private onActivated() {
-    if (this.mainWindow !== null) {
-      this.create();
-    }
   }
 
   private applicationExit() {
     if (this.windows) {
-      this.windows.forEach((window, index, arr) => {
-        if (window) {
+      this.windows.forEach(window => {
+        if (window && !window.isDestroyed()) {
           window.close();
         }
-        arr[index] = null;
       });
     }
+    this.app.quit();
   }
 }
 
