@@ -1,5 +1,5 @@
-export default function(): { [x: string]: string } {
-  const { href } = location;
+export default function(src?: string): { [x: string]: string } {
+  const href = src || location.href;
   if (href.indexOf("?") == -1) {
     return {};
   }
