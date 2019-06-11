@@ -72,68 +72,68 @@ var renderer = {
     // Module not found: Error: Can't resolve './lib-cov/fluent-ffmpeg' が出るのを防ぐ
     new webpack.DefinePlugin({
       "process.env.FLUENTFFMPEG_COV": false
-    }),
-    new CopyWebpackPlugin([
-      {
-        from: path.join(__dirname, "node_modules", "jsgif", "GIFEncoder.js")
-      },
-      {
-        from: path.join(__dirname, "node_modules", "jsgif", "LZWEncoder.js")
-      },
-      {
-        from: path.join(__dirname, "node_modules", "jsgif", "NeuQuant.js")
-      },
-      {
-        from: path.join(__dirname, "node_modules", "jsgif", "b64.js")
-      }
-    ])
+    })
+    // new CopyWebpackPlugin([
+    //   {
+    //     from: path.join(__dirname, "node_modules", "jsgif", "GIFEncoder.js")
+    //   },
+    //   {
+    //     from: path.join(__dirname, "node_modules", "jsgif", "LZWEncoder.js")
+    //   },
+    //   {
+    //     from: path.join(__dirname, "node_modules", "jsgif", "NeuQuant.js")
+    //   },
+    //   {
+    //     from: path.join(__dirname, "node_modules", "jsgif", "b64.js")
+    //   }
+    // ])
   ]
 };
 
-var worker = {
-  mode: isDev ? "development" : "production",
-  target: "electron-renderer",
-  entry: path.join(__dirname, "src", "renderer", "WebWorker", "index"),
-  devtool: isDev ? "inline-source-map" : false,
-  output: {
-    filename: "worker.js",
-    path: path.resolve(outputPath, "scripts")
-  },
-  resolve: {
-    extensions: [".json", ".js", ".ts"]
-  },
-  module: {
-    rules: [
-      {
-        test: /\.ts/,
-        use: ["ts-loader"],
-        include: [
-          path.resolve(__dirname, "src"),
-          path.resolve(__dirname, "node_modules")
-        ]
-      }
-    ]
-  },
-  plugins: [
-    // Module not found: Error: Can't resolve './lib-cov/fluent-ffmpeg' が出るのを防ぐ
-    new webpack.DefinePlugin({
-      "process.env.FLUENTFFMPEG_COV": false
-    }),
-    new CopyWebpackPlugin([
-      {
-        from: path.join(__dirname, "node_modules", "jsgif", "GIFEncoder.js")
-      },
-      {
-        from: path.join(__dirname, "node_modules", "jsgif", "LZWEncoder.js")
-      },
-      {
-        from: path.join(__dirname, "node_modules", "jsgif", "NeuQuant.js")
-      },
-      {
-        from: path.join(__dirname, "node_modules", "jsgif", "b64.js")
-      }
-    ])
-  ]
-};
+// var worker = {
+//   mode: isDev ? "development" : "production",
+//   target: "electron-renderer",
+//   entry: path.join(__dirname, "src", "renderer", "WebWorker", "index"),
+//   devtool: isDev ? "inline-source-map" : false,
+//   output: {
+//     filename: "worker.js",
+//     path: path.resolve(outputPath, "scripts")
+//   },
+//   resolve: {
+//     extensions: [".json", ".js", ".ts"]
+//   },
+//   module: {
+//     rules: [
+//       {
+//         test: /\.ts/,
+//         use: ["ts-loader"],
+//         include: [
+//           path.resolve(__dirname, "src"),
+//           path.resolve(__dirname, "node_modules")
+//         ]
+//       }
+//     ]
+//   },
+//   plugins: [
+//     // Module not found: Error: Can't resolve './lib-cov/fluent-ffmpeg' が出るのを防ぐ
+//     new webpack.DefinePlugin({
+//       "process.env.FLUENTFFMPEG_COV": false
+//     }),
+//     new CopyWebpackPlugin([
+//       // {
+//       //   from: path.join(__dirname, "node_modules", "jsgif", "GIFEncoder.js")
+//       // },
+//       // {
+//       //   from: path.join(__dirname, "node_modules", "jsgif", "LZWEncoder.js")
+//       // },
+//       // {
+//       //   from: path.join(__dirname, "node_modules", "jsgif", "NeuQuant.js")
+//       // },
+//       // {
+//       //   from: path.join(__dirname, "node_modules", "jsgif", "b64.js")
+//       // }
+//     ])
+//   ]
+// };
 
-module.exports = [main, renderer, worker];
+module.exports = [main, renderer];
