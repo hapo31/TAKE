@@ -64,7 +64,7 @@ class MyApp {
 
     const displays = screen.getAllDisplays();
 
-    this.windows = displays.map(display => {
+    const windows = displays.map(display => {
       const bw = new BrowserWindow({
         ...display.bounds,
         ...windowCommonOptions
@@ -77,7 +77,7 @@ class MyApp {
       return bw;
     });
 
-    this.windows.forEach(window => {
+    windows.forEach(window => {
       if (window) {
         window.loadURL(
           `${this.mainURL}?id=${this.windowToDisplayIdMap.get(window.id)}`
@@ -86,7 +86,7 @@ class MyApp {
     });
 
     if (this.isDebug) {
-      this.windows.forEach(window => {
+      windows.forEach(window => {
         if (window) {
           window.webContents.openDevTools();
         }
@@ -96,7 +96,7 @@ class MyApp {
     const menu = Menu.buildFromTemplate([]);
     Menu.setApplicationMenu(menu);
 
-    this.windows.forEach(window => {
+    windows.forEach(window => {
       if (window) {
         // 1個でもウインドウが手動で閉じられたら終了する
         window.on("closed", () => {
@@ -214,6 +214,8 @@ class MyApp {
         });
       }
     });
+
+    this.windows = windows;
   }
 
   private applicationExit() {
