@@ -12,6 +12,7 @@ import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
 import tempfile from "tempfile";
 import SendBlobEvent from "./utils/SendBlobEvent";
+import { loadOrDefaultConfig, ApplicationConfig } from "./config";
 
 class MyApp {
   private mainWindow: BrowserWindow | null = null;
@@ -23,7 +24,6 @@ class MyApp {
   private isRecording = false;
 
   private isDebug = false;
-  private isUseFFmpeg = true;
 
   constructor(app: App) {
     this.app = app;
@@ -46,9 +46,21 @@ class MyApp {
     this.app.quit();
   }
 
-  private create() {
+  private async create() {
+    const [config, isCreatedConfigFile] = await loadOrDefaultConfig(
+      "./config.json"
+    );
+
+    if (!this.configCheck(config)) {
+      this.applicationExit();
+    }
+
+    if (isCreatedConfigFile) {
+      // TODO: 初回作成時はなんか言うといいかも
+    }
+
     const windowCommonOptions = {
-      title: "cap-taro",
+      title: "TAKE",
       acceptFirstMouse: true,
       frame: false,
       alwaysOnTop: true,
@@ -118,7 +130,7 @@ class MyApp {
           : data.height + (16 - (data.height % 16));
 
       const blob = Buffer.from(data.base64, "base64");
-      const outputFileType = "mp4";
+      const outputFileType = config.outputFormat || "webm";
       if (this.windows && this.isDebug === false) {
         this.windows.forEach(window => {
           if (window && !window.isDestroyed()) {
@@ -140,7 +152,7 @@ class MyApp {
         },
         (path?: string) => {
           if (path) {
-            if (!this.isUseFFmpeg) {
+            if (!config.useFFmpeg) {
               fs.writeFile(path, blob, err => {
                 if (err) {
                   dialog.showErrorBox("error", err.message);
@@ -154,7 +166,12 @@ class MyApp {
                   dialog.showErrorBox("error", err.message);
                 }
                 try {
-                  ffmpeg(tmpfilename)
+                  const command = ffmpeg(tmpfilename);
+                  // false とかがセットされてたら PATH が通っているものとして扱う的なことにしたい
+                  if (config.ffmpegPath) {
+                    command.setFfmpegPath(config.ffmpegPath);
+                  }
+                  command
                     .addOption("-pix_fmt", "yuv420p")
                     .size(`${fixedWidth}x${fixedHeight}`)
                     .videoCodec("libx264")
@@ -227,6 +244,23 @@ class MyApp {
       });
     }
     this.app.quit();
+  }
+
+  private configCheck(config: ApplicationConfig) {
+    switch (config.outputFormat) {
+      case "mp4":
+      case "webm":
+      case "gif":
+        return true;
+      default:
+        dialog.showErrorBox(
+          "TAKE",
+          `Unknown "outputFormat": "${
+            config.outputFormat
+          }"\nAvailable formats:\n"mp4"\n"gif"\n"webm"`
+        );
+        return false;
+    }
   }
 }
 
