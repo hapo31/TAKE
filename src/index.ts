@@ -171,10 +171,14 @@ class MyApp {
                   if (config.ffmpegPath) {
                     command.setFfmpegPath(config.ffmpegPath);
                   }
+
+                  if (config.outputFormat === "mp4") {
+                    command
+                      .size(`${fixedWidth}x${fixedHeight}`)
+                      .videoCodec("libx264")
+                      .addOption("-pix_fmt", "yuv420p");
+                  }
                   command
-                    .addOption("-pix_fmt", "yuv420p")
-                    .size(`${fixedWidth}x${fixedHeight}`)
-                    .videoCodec("libx264")
                     .output(path)
                     .on("end", () => {
                       fs.unlink(tmpfilename, err => {
