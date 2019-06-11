@@ -36,8 +36,8 @@ export async function loadOrDefaultConfig(path: string) {
 export async function createDefaultConfigJson(path: string) {
   return new Promise<ApplicationConfig>((res, rej) => {
     const data: ApplicationConfig = {
-      ffmpegPath: false,
       useFFmpeg: false,
+      ffmpegPath: false,
       outputFormat: "webm"
     };
     fs.writeFile(path, JSON.stringify(data, null, "  "), err => {
