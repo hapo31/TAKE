@@ -209,7 +209,7 @@ class MyApp {
       if (this.windows) {
         this.windows.forEach(window => {
           if (window) {
-            window.webContents.send("shortcut-key", { key: "Escape" });
+            window.webContents.send("shortcut-key", { name: "RecordingStop" });
           }
         });
       }

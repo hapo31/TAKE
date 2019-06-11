@@ -3,12 +3,7 @@ import DragPoints from "./DragPoints/DragPoints";
 import DrawRect from "../Styled/DrawRect";
 import { Rect } from "../../utils/types";
 import CutVideoRect from "./CutVideoRect/CutVideoRect";
-import {
-  desktopCapturer,
-  DesktopCapturerSource,
-  ipcRenderer,
-  remote
-} from "electron";
+import { desktopCapturer, DesktopCapturerSource, ipcRenderer } from "electron";
 import SendBlobEvent from "../../utils/SendBlobEvent";
 import ShortCutKeyEvent from "../../utils/ShortCutKeyEvent";
 
@@ -31,9 +26,9 @@ export default (props: Props) => {
 
   useEffect(() => {
     ipcRenderer.on("shortcut-key", (_: Electron.Event, e: ShortCutKeyEvent) => {
-      switch (e.key) {
-        // Escape キーで録画終了
-        case "Escape": {
+      switch (e.name) {
+        // RecordingStop で録画終了
+        case "RecordingStop": {
           if (isRecording) {
             setSaveVideo(true);
           } else {
