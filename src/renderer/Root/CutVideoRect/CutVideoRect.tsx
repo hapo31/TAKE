@@ -27,6 +27,7 @@ export default (props: Props) => {
   useEffect(() => {
     if (recorder === null && canvasRef && canvasRef.current) {
       const recorder = new MediaRecorder(canvasRef.current.captureStream(), {
+        mimeType: "video/webm;codecs=H264",
         audioBitsPerSecond: 0,
         videoBitsPerSecond: 2500 * 1024
       });
