@@ -1,12 +1,12 @@
 {
-  "name": "cap-taro",
+  "name": "take",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "start": "electron ./dist",
     "format": "prettier --write src/**/*",
     "watch": "webpack --watch --config ./webpack.config.js --mode development",
-    "build:win": "cross-env NODE_ENV=production webpack --config ./webpack.config.js --mode production && copy package.json dist\\ && electron-packager ./dist cap-taro --platform=win32 --arch=x64 --electron-version=5.0.2 --overwrite"
+    "build:win": "cross-env NODE_ENV=production webpack --config ./webpack.config.js --mode production && copy package.json dist\\ && electron-packager ./dist TAKE --platform=win32 --arch=x64 --icon=./images/icon.ico --electron-version=5.0.2 --overwrite"
   },
   "devDependencies": {
     "@types/fluent-ffmpeg": "^2.1.9",
