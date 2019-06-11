@@ -18,7 +18,7 @@ Espace キーで撮影を終了します。
       ffmpeg があるパスを指定してあげてください。
       false と書くと、 ffmpeg へ PATH が通っているものとして扱います。(よく分からなければ直接パスを書くこと)
 
-    "outputFormat": "webm"
+    "outputFormat"
       ファイルフォーマットを指定します。
       今のところ
         "mp4"
