@@ -130,7 +130,9 @@ class MyApp {
           : data.height + (16 - (data.height % 16));
 
       const blob = Buffer.from(data.base64, "base64");
-      const outputFileType = config.outputFormat || "webm";
+      const outputFileType = config.useFFmpeg
+        ? config.outputFormat || "webm"
+        : "webm";
       if (this.windows && this.isDebug === false) {
         this.windows.forEach(window => {
           if (window && !window.isDestroyed()) {
