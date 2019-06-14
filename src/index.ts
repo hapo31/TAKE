@@ -13,7 +13,11 @@ import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
 import tempfile from "tempfile";
 import SendBlobEvent from "./utils/SendBlobEvent";
-import { loadOrDefaultConfig, ApplicationConfig } from "./config";
+import {
+  loadOrDefaultConfig,
+  ApplicationConfig,
+  createDefaultConfigJson
+} from "./config";
 import { exec } from "child_process";
 
 class MyApp {
@@ -66,13 +70,20 @@ class MyApp {
       this.applicationExit();
       return;
     }
-    this.tray = new Tray("images/icon.ico");
+
+    fs.exists("config.json", exists => {
+      if (!exists) {
+        createDefaultConfigJson("./config.json", this.defaultConfig);
+      }
+    });
+
+    this.tray = new Tray(`${__dirname}/images/icon.ico`);
 
     this.tray.setToolTip("TAKE - take a screenshot.");
 
     const menu = Menu.buildFromTemplate([
       {
-        icon: "images/rec.png",
+        icon: `${__dirname}/images/rec.png`,
         label: "Record",
         click: _ => {
           this.createWindows();
