@@ -6,11 +6,14 @@ export type ApplicationConfig = {
   outputFormat?: "mp4" | "gif" | "webm";
 };
 
-export async function loadOrDefaultConfig(path: string) {
+export async function loadOrDefaultConfig(
+  path: string,
+  defaultConfig: ApplicationConfig
+) {
   return new Promise<[ApplicationConfig, boolean]>((res, rej) => {
     fs.readFile(path, (err, data) => {
       if (err) {
-        createDefaultConfigJson(path)
+        createDefaultConfigJson(path, defaultConfig)
           .then((data: ApplicationConfig) => {
             res([data, true]);
             return;
@@ -33,19 +36,17 @@ export async function loadOrDefaultConfig(path: string) {
   });
 }
 
-export async function createDefaultConfigJson(path: string) {
+export async function createDefaultConfigJson(
+  path: string,
+  defaultConfig: ApplicationConfig
+) {
   return new Promise<ApplicationConfig>((res, rej) => {
-    const data: ApplicationConfig = {
-      useFFmpeg: false,
-      ffmpegPath: false,
-      outputFormat: "webm"
-    };
-    fs.writeFile(path, JSON.stringify(data, null, "  "), err => {
+    fs.writeFile(path, JSON.stringify(defaultConfig, null, "  "), err => {
       if (err) {
         rej(err.message);
         return;
       }
-      res(data);
+      res(defaultConfig);
     });
   });
 }

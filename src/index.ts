@@ -6,13 +6,15 @@ import {
   screen,
   ipcMain,
   dialog,
-  globalShortcut
+  globalShortcut,
+  Tray
 } from "electron";
 import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";
 import tempfile from "tempfile";
 import SendBlobEvent from "./utils/SendBlobEvent";
 import { loadOrDefaultConfig, ApplicationConfig } from "./config";
+import { throws } from "assert";
 
 class MyApp {
   private mainWindow: BrowserWindow | null = null;
@@ -21,43 +23,176 @@ class MyApp {
   private app: App;
   private mainURL: string = `file://${__dirname}/index.html`;
 
+  private config: ApplicationConfig;
+
+  private readonly defaultConfig: ApplicationConfig = {
+    useFFmpeg: false,
+    ffmpegPath: false,
+    outputFormat: "webm"
+  };
+  private tray: Tray | null = null;
+
   private isRecording = false;
 
   private isDebug = false;
 
   constructor(app: App) {
     this.app = app;
-    this.app.on("window-all-closed", this.onWindowAllClosed.bind(this));
-    this.app.on("ready", this.create.bind(this));
+    this.app.on("ready", this.onReady.bind(this));
     this.app.on("activate", this.onActivated.bind(this));
+
+    this.config = this.defaultConfig;
   }
 
   private onReady() {
-    this.create();
+    this.init();
+    this.createWindows();
   }
 
   private onActivated() {
     if (this.windows !== null) {
-      this.create();
+      this.createWindows();
     }
   }
 
-  private onWindowAllClosed() {
-    this.app.quit();
+  private async init() {
+    ipcMain.on("send-blob", (e: Electron.Event, data: SendBlobEvent) => {
+      const fixedWidth =
+        data.width % 16 === 0
+          ? data.width
+          : data.width + (16 - (data.width % 16));
+      const fixedHeight =
+        data.height % 16 === 0
+          ? data.height
+          : data.height + (16 - (data.height % 16));
+
+      const blob = Buffer.from(data.base64, "base64");
+      const outputFileType = this.config.useFFmpeg
+        ? this.config.outputFormat || "webm"
+        : "webm";
+      if (this.windows && this.isDebug === false) {
+        this.windows.forEach(window => {
+          if (window && !window.isDestroyed()) {
+            window.setAlwaysOnTop(true);
+          }
+        });
+      }
+      dialog.showSaveDialog(
+        this.mainWindow!,
+        {
+          title: "save",
+          defaultPath: ".",
+          filters: [
+            {
+              name: outputFileType,
+              extensions: [outputFileType]
+            }
+          ]
+        },
+        (path?: string) => {
+          if (path) {
+            if (!this.config.useFFmpeg) {
+              fs.writeFile(path, blob, err => {
+                if (err) {
+                  this.showCommonErrorBox(err);
+                }
+                this.allWindowClose();
+              });
+            } else {
+              const tmpfilename = tempfile(".mp4");
+              fs.writeFile(tmpfilename, blob, async err => {
+                if (err) {
+                  this.showCommonErrorBox(err);
+                  this.allWindowClose();
+                }
+                try {
+                  const command = ffmpeg(tmpfilename);
+                  // false とかがセットされてたら PATH が通っているものとして扱う的なことにしたい
+                  if (this.config.ffmpegPath) {
+                    command.setFfmpegPath(this.config.ffmpegPath);
+                  }
+
+                  if (this.config.outputFormat === "mp4") {
+                    command
+                      .size(`${fixedWidth}x${fixedHeight}`)
+                      .videoCodec("libx264")
+                      .addOption("-pix_fmt", "yuv420p");
+                  }
+                  command
+                    .output(path)
+                    .on("end", () => {
+                      fs.unlink(tmpfilename, err => {
+                        if (err) {
+                          this.showCommonErrorBox(err);
+                        }
+                        this.allWindowClose();
+                      });
+                    })
+                    .on("error", err => {
+                      this.showCommonErrorBox(err);
+                      this.allWindowClose();
+                    })
+                    .run();
+                } catch (e) {
+                  this.showCommonErrorBox(err);
+                  this.allWindowClose();
+                }
+              });
+            }
+          } else {
+            // キャンセル時の挙動
+            this.allWindowClose();
+          }
+        }
+      );
+    });
+
+    ipcMain.on("window-hide", (e: Electron.Event) => {
+      if (this.windows && this.isDebug === false) {
+        this.windows.forEach(window => {
+          if (window) {
+            window.setOpacity(0.0);
+            window.setAlwaysOnTop(false);
+            window.blur();
+          }
+        });
+      }
+    });
+
+    ipcMain.on("start-recording", () => {
+      this.isRecording = true;
+    });
+
+    globalShortcut.register("Escape", () => {
+      if (this.windows) {
+        this.windows.forEach(window => {
+          if (window) {
+            window.webContents.send("shortcut-key", { name: "RecordingStop" });
+          }
+        });
+      }
+    });
+
+    globalShortcut.register("Super+Alt+A", () => {
+      this.createWindows();
+    });
   }
 
-  private async create() {
+  private async createWindows() {
     const [config, isCreatedConfigFile] = await loadOrDefaultConfig(
-      "./config.json"
+      "./config.json",
+      this.defaultConfig
     );
 
     if (!this.configCheck(config)) {
-      this.applicationExit();
+      this.allWindowClose();
     }
 
     if (isCreatedConfigFile) {
       // TODO: 初回作成時はなんか言うといいかも
     }
+
+    this.config = config;
 
     const windowCommonOptions = {
       title: "TAKE",
@@ -105,9 +240,6 @@ class MyApp {
       });
     }
 
-    const menu = Menu.buildFromTemplate([]);
-    Menu.setApplicationMenu(menu);
-
     windows.forEach(window => {
       if (window) {
         // 1個でもウインドウが手動で閉じられたら終了する
@@ -119,137 +251,30 @@ class MyApp {
       }
     });
 
-    ipcMain.on("send-blob", (e: Electron.Event, data: SendBlobEvent) => {
-      const fixedWidth =
-        data.width % 16 === 0
-          ? data.width
-          : data.width + (16 - (data.width % 16));
-      const fixedHeight =
-        data.height % 16 === 0
-          ? data.height
-          : data.height + (16 - (data.height % 16));
-
-      const blob = Buffer.from(data.base64, "base64");
-      const outputFileType = config.useFFmpeg
-        ? config.outputFormat || "webm"
-        : "webm";
-      if (this.windows && this.isDebug === false) {
-        this.windows.forEach(window => {
-          if (window && !window.isDestroyed()) {
-            window.setAlwaysOnTop(true);
-          }
-        });
-      }
-      dialog.showSaveDialog(
-        this.mainWindow!,
-        {
-          title: "save",
-          defaultPath: ".",
-          filters: [
-            {
-              name: outputFileType,
-              extensions: [outputFileType]
-            }
-          ]
-        },
-        (path?: string) => {
-          if (path) {
-            if (!config.useFFmpeg) {
-              fs.writeFile(path, blob, err => {
-                if (err) {
-                  dialog.showErrorBox("error", err.message);
-                }
-                this.applicationExit();
-              });
-            } else {
-              const tmpfilename = tempfile(".mp4");
-              fs.writeFile(tmpfilename, blob, async err => {
-                if (err) {
-                  dialog.showErrorBox("error", err.message);
-                }
-                try {
-                  const command = ffmpeg(tmpfilename);
-                  // false とかがセットされてたら PATH が通っているものとして扱う的なことにしたい
-                  if (config.ffmpegPath) {
-                    command.setFfmpegPath(config.ffmpegPath);
-                  }
-
-                  if (config.outputFormat === "mp4") {
-                    command
-                      .size(`${fixedWidth}x${fixedHeight}`)
-                      .videoCodec("libx264")
-                      .addOption("-pix_fmt", "yuv420p");
-                  }
-                  command
-                    .output(path)
-                    .on("end", () => {
-                      fs.unlink(tmpfilename, err => {
-                        this.applicationExit();
-                        if (err) {
-                          console.error(err);
-                          dialog.showErrorBox("error", err.message);
-                          this.applicationExit();
-                        }
-                      });
-                    })
-                    .on("error", err => {
-                      console.error(err);
-                      dialog.showErrorBox("error", err.message);
-                      this.applicationExit();
-                    })
-                    .run();
-                } catch (e) {
-                  console.error(e);
-                  this.applicationExit();
-                }
-              });
-            }
-          } else {
-            // キャンセル時の挙動
-            this.applicationExit();
-          }
-        }
-      );
-    });
-
-    ipcMain.on("window-hide", (e: Electron.Event) => {
-      if (this.windows && this.isDebug === false) {
-        this.windows.forEach(window => {
-          if (window) {
-            window.setOpacity(0.0);
-            window.setAlwaysOnTop(false);
-            window.blur();
-          }
-        });
-      }
-    });
-
-    ipcMain.on("start-recording", () => {
-      this.isRecording = true;
-    });
-
-    globalShortcut.register("Escape", () => {
-      if (this.windows) {
-        this.windows.forEach(window => {
-          if (window) {
-            window.webContents.send("shortcut-key", { name: "RecordingStop" });
-          }
-        });
-      }
-    });
-
     this.windows = windows;
   }
 
   private applicationExit() {
+    this.allWindowClose();
+    globalShortcut.removeAllListeners();
+    this.app.quit();
+  }
+
+  private allWindowClose() {
     if (this.windows) {
       this.windows.forEach(window => {
         if (window && !window.isDestroyed()) {
           window.close();
         }
       });
+
+      this.windows = null;
     }
-    this.app.quit();
+  }
+
+  private showCommonErrorBox(error: any) {
+    console.error(error);
+    dialog.showErrorBox("error", error.message);
   }
 
   private configCheck(config: ApplicationConfig) {
