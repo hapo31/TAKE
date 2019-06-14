@@ -6,7 +6,7 @@
     "start": "electron ./dist",
     "format": "prettier --write src/**/*",
     "watch": "webpack --watch --config ./webpack.config.js --mode development",
-    "build:win": "cross-env NODE_ENV=production webpack --config ./webpack.config.js --mode production && copy package.json dist\\ && electron-packager ./dist TAKE --platform=win32 --arch=x64 --icon=./images/icon.ico --electron-version=5.0.2 --overwrite"
+    "build:win": "cross-env NODE_ENV=production webpack --config ./webpack.config.js --mode production && copy package.json dist\\ && electron-packager ./dist TAKE --platform=win32 --arch=x64 --icon=./images/icon.ico --electron-version=5.0.2 --overwrite && copy readme.md TAKE-win32-x64\\readme.txt"
   },
   "devDependencies": {
     "@types/fluent-ffmpeg": "^2.1.9",
@@ -25,14 +25,12 @@
   },
   "dependencies": {
     "fluent-ffmpeg": "^2.1.2",
-    "jsgif": "git+https://github.com/antimatter15/jsgif#b46429c50a53d23b762d6ebb00b375aece3ed843",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
     "react-redux": "^7.0.3",
     "redux": "^4.0.1",
     "styled-components": "^4.2.1",
-    "tempfile": "^3.0.0",
-    "whammy": "^0.0.1"
+    "tempfile": "^3.0.0"
   },
   "license": "MIT",
   "author": "happou31",
