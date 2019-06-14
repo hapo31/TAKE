@@ -39,6 +39,9 @@ var main = {
     new CopyWebpackPlugin([
       {
         from: path.join(__dirname, "src", "renderer", "index.html")
+      },
+      {
+        from: path.join(__dirname, "images/**/*")
       }
     ])
   ]
@@ -73,20 +76,6 @@ var renderer = {
     new webpack.DefinePlugin({
       "process.env.FLUENTFFMPEG_COV": false
     })
-    // new CopyWebpackPlugin([
-    //   {
-    //     from: path.join(__dirname, "node_modules", "jsgif", "GIFEncoder.js")
-    //   },
-    //   {
-    //     from: path.join(__dirname, "node_modules", "jsgif", "LZWEncoder.js")
-    //   },
-    //   {
-    //     from: path.join(__dirname, "node_modules", "jsgif", "NeuQuant.js")
-    //   },
-    //   {
-    //     from: path.join(__dirname, "node_modules", "jsgif", "b64.js")
-    //   }
-    // ])
   ]
 };
 

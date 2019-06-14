@@ -14,12 +14,11 @@ import ffmpeg from "fluent-ffmpeg";
 import tempfile from "tempfile";
 import SendBlobEvent from "./utils/SendBlobEvent";
 import { loadOrDefaultConfig, ApplicationConfig } from "./config";
-import { throws } from "assert";
+import { exec } from "child_process";
 
 class MyApp {
-  private mainWindow: BrowserWindow | null = null;
   private windowToDisplayIdMap: Map<number, number> = new Map();
-  private windows: (BrowserWindow | null)[] | null = null;
+  private windows: BrowserWindow[] | null = null;
   private app: App;
   private mainURL: string = `file://${__dirname}/index.html`;
 
@@ -38,24 +37,71 @@ class MyApp {
 
   constructor(app: App) {
     this.app = app;
-    this.app.on("ready", this.onReady.bind(this));
-    this.app.on("activate", this.onActivated.bind(this));
+    this.app.on("ready", this.onReady);
+    this.app.on("activate", this.onActivated);
+    // 「何もしないハンドラ」を渡しておかないとデフォルトのハンドラが実行されてアプリが終了しちゃう
+    this.app.on("window-all-closed", this.onWindowAllClosed);
 
     this.config = this.defaultConfig;
   }
 
-  private onReady() {
+  private onReady = () => {
     this.init();
-    this.createWindows();
-  }
+  };
 
-  private onActivated() {
+  private onActivated = () => {
     if (this.windows !== null) {
       this.createWindows();
     }
-  }
+  };
+
+  private onWindowAllClosed = () => {
+    return;
+  };
 
   private async init() {
+    const gotTheLock = app.requestSingleInstanceLock();
+
+    if (!gotTheLock) {
+      this.applicationExit();
+      return;
+    }
+    this.tray = new Tray("images/icon.ico");
+
+    this.tray.setToolTip("TAKE - take a screenshot.");
+
+    const menu = Menu.buildFromTemplate([
+      {
+        icon: "images/rec.png",
+        label: "Record",
+        click: _ => {
+          this.createWindows();
+        }
+      },
+      {
+        label: 'Open "config.json"',
+        click: _ => {
+          switch (process.platform) {
+            case "win32":
+              exec("start ./config.json");
+              break;
+            case "darwin":
+              exec("open ./config.json");
+              break;
+            default:
+              exec("vi ./config.json");
+          }
+        }
+      },
+      {
+        label: "Close",
+        click: _ => {
+          this.applicationExit();
+        }
+      }
+    ]);
+    this.tray.setContextMenu(menu);
+
     ipcMain.on("send-blob", (e: Electron.Event, data: SendBlobEvent) => {
       const fixedWidth =
         data.width % 16 === 0
@@ -78,7 +124,7 @@ class MyApp {
         });
       }
       dialog.showSaveDialog(
-        this.mainWindow!,
+        null as any,
         {
           title: "save",
           defaultPath: ".",
@@ -173,12 +219,16 @@ class MyApp {
       }
     });
 
-    globalShortcut.register("Super+Alt+A", () => {
+    globalShortcut.register("Super+Shift+A", () => {
       this.createWindows();
     });
   }
 
   private async createWindows() {
+    if (this.windows != null) {
+      return;
+    }
+
     const [config, isCreatedConfigFile] = await loadOrDefaultConfig(
       "./config.json",
       this.defaultConfig
@@ -218,9 +268,6 @@ class MyApp {
       });
       // 各ウインドウから id を取得出来るように、 BrowserWindow と display の id を紐付ける
       this.windowToDisplayIdMap.set(bw.id, display.id);
-      if (display.id === screen.getPrimaryDisplay().id) {
-        this.mainWindow = bw;
-      }
       return bw;
     });
 
@@ -242,10 +289,10 @@ class MyApp {
 
     windows.forEach(window => {
       if (window) {
-        // 1個でもウインドウが手動で閉じられたら終了する
+        // 1個でもウインドウが手動で閉じられたらそのセッションは終了
         window.on("closed", () => {
           if (!this.isRecording) {
-            this.applicationExit();
+            this.allWindowClose();
           }
         });
       }
@@ -256,7 +303,6 @@ class MyApp {
 
   private applicationExit() {
     this.allWindowClose();
-    globalShortcut.removeAllListeners();
     this.app.quit();
   }
 
