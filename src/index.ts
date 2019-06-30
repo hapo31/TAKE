@@ -220,16 +220,6 @@ class MyApp {
       this.isRecording = true;
     });
 
-    globalShortcut.register("Escape", () => {
-      if (this.windows) {
-        this.windows.forEach(window => {
-          if (window) {
-            window.webContents.send("shortcut-key", { name: "RecordingStop" });
-          }
-        });
-      }
-    });
-
     globalShortcut.register("Super+Shift+A", () => {
       this.createWindows();
     });
@@ -309,6 +299,16 @@ class MyApp {
       }
     });
 
+    globalShortcut.register("Escape", () => {
+      if (this.windows) {
+        this.windows.forEach(window => {
+          if (window) {
+            window.webContents.send("shortcut-key", { name: "RecordingStop" });
+          }
+        });
+      }
+    });
+
     this.windows = windows;
   }
 
@@ -324,7 +324,9 @@ class MyApp {
           window.close();
         }
       });
-
+      if (globalShortcut.isRegistered("Escape")) {
+        globalShortcut.unregister("Escape");
+      }
       this.windows = null;
     }
   }
