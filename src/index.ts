@@ -28,6 +28,8 @@ class MyApp {
 
   private config: ApplicationConfig;
 
+  private isShowingDialog = false;
+
   private readonly defaultConfig: ApplicationConfig = {
     useFFmpeg: false,
     ffmpegPath: false,
@@ -114,6 +116,7 @@ class MyApp {
     this.tray.setContextMenu(menu);
 
     ipcMain.on("send-blob", (e: Electron.Event, data: SendBlobEvent) => {
+      this.isShowingDialog = true;
       const fixedWidth =
         data.width % 16 === 0
           ? data.width
@@ -300,7 +303,7 @@ class MyApp {
     });
 
     globalShortcut.register("Escape", () => {
-      if (this.windows) {
+      if (this.windows && !this.isShowingDialog) {
         this.windows.forEach(window => {
           if (window) {
             window.webContents.send("shortcut-key", { name: "RecordingStop" });
