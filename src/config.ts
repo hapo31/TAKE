@@ -3,7 +3,7 @@ import fs from "fs";
 export type ApplicationConfig = {
   useFFmpeg?: boolean;
   ffmpegPath?: string | false;
-  outputFormat?: "mp4" | "gif" | "webm";
+  defaultFormat: string;
 };
 
 export async function loadOrDefaultConfig(

@@ -33,8 +33,9 @@ class MyApp {
   private readonly defaultConfig: ApplicationConfig = {
     useFFmpeg: false,
     ffmpegPath: false,
-    outputFormat: "webm"
+    defaultFormat: "webm"
   };
+
   private tray: Tray | null = null;
 
   private isRecording = false;
@@ -127,9 +128,6 @@ class MyApp {
           : data.height + (16 - (data.height % 16));
 
       const blob = Buffer.from(data.base64, "base64");
-      const outputFileType = this.config.useFFmpeg
-        ? this.config.outputFormat || "webm"
-        : "webm";
       if (this.windows && this.isDebug === false) {
         this.windows.forEach(window => {
           if (window && !window.isDestroyed()) {
@@ -141,16 +139,25 @@ class MyApp {
         null as any,
         {
           title: "save",
-          defaultPath: ".",
-          filters: [
-            {
-              name: outputFileType,
-              extensions: [outputFileType]
-            }
-          ]
+          defaultPath: "."
         },
         (path?: string) => {
           if (path) {
+            const getExtension = (path: string) => {
+              const paths = path.split("/");
+              const dotLastIndex = paths[paths.length - 1].lastIndexOf(".");
+
+              if (dotLastIndex == 0) {
+                this.showCommonErrorBox("Invalid file name.");
+                this.applicationExit();
+              }
+              if (dotLastIndex >= 1) {
+                return path.slice(dotLastIndex + 1);
+              }
+
+              return null;
+            };
+
             if (!this.config.useFFmpeg) {
               fs.writeFile(path, blob, err => {
                 if (err) {
@@ -167,19 +174,32 @@ class MyApp {
                 }
                 try {
                   const command = ffmpeg(tmpfilename);
+                  const ext = getExtension(path);
                   // false とかがセットされてたら PATH が通っているものとして扱う的なことにしたい
                   if (this.config.ffmpegPath) {
                     command.setFfmpegPath(this.config.ffmpegPath);
                   }
 
-                  if (this.config.outputFormat === "mp4") {
+                  // 条件が複雑だなぁ
+                  // 拡張子がmp4であるか、デフォルトフォーマットがmp4ならTwitterで投稿が通る形式にする
+                  if (
+                    ext === "mp4" ||
+                    (ext === null && this.config.defaultFormat === "mp4")
+                  ) {
                     command
                       .size(`${fixedWidth}x${fixedHeight}`)
                       .videoCodec("libx264")
                       .addOption("-pix_fmt", "yuv420p");
                   }
+
                   command
-                    .output(path)
+                    .output(
+                      ext !== null
+                        ? path // 拡張子がある場合はそのまま渡す
+                        : this.config.useFFmpeg // ffmpeg を使う設定なら入力に素直に従う
+                        ? `${path}.${this.config.defaultFormat}` // 拡張子がない場合はデフォルトのフォーマットを使う
+                        : `${path}.webm` // ffmpeg を使う設定でないなら.webm
+                    )
                     .on("end", () => {
                       fs.unlink(tmpfilename, err => {
                         if (err) {
@@ -331,6 +351,7 @@ class MyApp {
         globalShortcut.unregister("Escape");
       }
       this.windows = null;
+      this.isShowingDialog = false;
     }
   }
 
@@ -340,7 +361,7 @@ class MyApp {
   }
 
   private configCheck(config: ApplicationConfig) {
-    switch (config.outputFormat) {
+    switch (config.defaultFormat) {
       case "mp4":
       case "webm":
       case "gif":
@@ -348,9 +369,7 @@ class MyApp {
       default:
         dialog.showErrorBox(
           "TAKE",
-          `Unknown "outputFormat": "${
-            config.outputFormat
-          }"\nAvailable formats:\n"mp4"\n"gif"\n"webm"`
+          `Unknown "defaultFormat": "${config.defaultFormat}"\nAvailable formats:\n"mp4"\n"gif"\n"webm"`
         );
         return false;
     }
