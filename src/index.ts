@@ -10,6 +10,7 @@ import {
   Tray
 } from "electron";
 import fs from "fs";
+import path from "path";
 import ffmpeg from "fluent-ffmpeg";
 import tempfile from "tempfile";
 import SendBlobEvent from "./utils/SendBlobEvent";
@@ -51,15 +52,25 @@ class MyApp {
     this.app.on("window-all-closed", this.onWindowAllClosed);
 
     this.config = this.defaultConfig;
+
+    process.on("uncaughtException", error => {
+      console.error(error);
+      dialog.showErrorBox("error", error.message);
+    });
   }
 
   private onReady = () => {
-    this.init();
+    this.init().catch(err => {
+      console.error(err);
+      dialog.showErrorBox("error", err.message);
+    });
   };
 
   private onActivated = () => {
     if (this.windows !== null) {
-      this.createWindows();
+      this.createWindows().catch(err => {
+        dialog.showErrorBox("error", err.message);
+      });
     }
   };
 
@@ -142,37 +153,12 @@ class MyApp {
           title: "save",
           defaultPath: "."
         },
-        (path?: string) => {
-          if (path) {
-            const getExtension = (path: string) => {
-              const paths = path.split("/");
-              const dotLastIndex = paths[paths.length - 1].lastIndexOf(".");
-
-              // 拡張子がない場合はconfigで設定されているデフォルトの拡張子を返す
-              if (dotLastIndex == 0) {
-                return this.config.defaultFormat;
-              }
-
-              // 拡張子があるっぽい場合
-              if (dotLastIndex >= 1) {
-                const ext = path.slice(dotLastIndex + 1);
-
-                // 動画っぽい拡張子かどうかを見る
-                if (AVAILABLE_EXT.some(EXT => ext.toLowerCase() === EXT)) {
-                  return ext;
-                } else {
-                  this.showCommonErrorBox("Invalid file name.");
-                  this.applicationExit();
-                }
-              }
-
-              return null;
-            };
-
+        (pathStr?: string) => {
+          if (pathStr) {
             if (!this.config.useFFmpeg) {
-              fs.writeFile(path, blob, err => {
+              fs.writeFile(pathStr, blob, err => {
                 if (err) {
-                  this.showCommonErrorBox(err);
+                  throw err;
                 }
                 this.allWindowClose();
               });
@@ -180,12 +166,11 @@ class MyApp {
               const tmpfilename = tempfile(".mp4");
               fs.writeFile(tmpfilename, blob, async err => {
                 if (err) {
-                  this.showCommonErrorBox(err);
-                  this.allWindowClose();
+                  throw err;
                 }
                 try {
                   const command = ffmpeg(tmpfilename);
-                  const ext = getExtension(path);
+                  const ext = path.extname(pathStr).slice(1);
                   // false とかがセットされてたら PATH が通っているものとして扱う的なことにしたい
                   if (this.config.ffmpegPath) {
                     command.setFfmpegPath(this.config.ffmpegPath);
@@ -195,7 +180,7 @@ class MyApp {
                   // 拡張子がmp4であるか、デフォルトフォーマットがmp4ならTwitterで投稿が通る形式にする
                   if (
                     ext === "mp4" ||
-                    (ext === null && this.config.defaultFormat === "mp4")
+                    (ext.length === 0 && this.config.defaultFormat === "mp4")
                   ) {
                     command
                       .size(`${fixedWidth}x${fixedHeight}`)
@@ -205,28 +190,26 @@ class MyApp {
 
                   command
                     .output(
-                      ext !== null
-                        ? path // 拡張子がある場合はそのまま渡す
-                        : this.config.useFFmpeg // ffmpeg を使う設定なら入力に素直に従う
-                        ? `${path}.${this.config.defaultFormat}` // 拡張子がない場合はデフォルトのフォーマットを使う
-                        : `${path}.webm` // ffmpeg を使う設定でないなら.webm
+                      ext.length !== 0
+                        ? pathStr
+                        : this.config.useFFmpeg
+                        ? `${pathStr}.${ext}` // ffmpeg を使う設定なら入力に従う
+                        : `${pathStr}.webm` // ffmpeg を使う設定でないなら強制的に.webm
                     )
                     .on("end", () => {
                       fs.unlink(tmpfilename, err => {
                         if (err) {
-                          this.showCommonErrorBox(err);
+                          throw err;
                         }
                         this.allWindowClose();
                       });
                     })
                     .on("error", err => {
-                      this.showCommonErrorBox(err);
-                      this.allWindowClose();
+                      throw err;
                     })
                     .run();
                 } catch (e) {
-                  this.showCommonErrorBox(err);
-                  this.allWindowClose();
+                  throw err;
                 }
               });
             }
@@ -364,11 +347,6 @@ class MyApp {
       this.windows = null;
       this.isShowingDialog = false;
     }
-  }
-
-  private showCommonErrorBox(error: any) {
-    console.error(error);
-    dialog.showErrorBox("error", error.message);
   }
 
   private configCheck(config: ApplicationConfig) {
