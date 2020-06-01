@@ -50,3 +50,14 @@ export async function createDefaultConfigJson(
     });
   });
 }
+
+export const AVAILABLE_EXT = [
+  "mp4",
+  "avi",
+  "mov",
+  "wmv",
+  "flv",
+  "mkv",
+  "mpg",
+  "webm"
+];

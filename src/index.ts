@@ -16,7 +16,8 @@ import SendBlobEvent from "./utils/SendBlobEvent";
 import {
   loadOrDefaultConfig,
   ApplicationConfig,
-  createDefaultConfigJson
+  createDefaultConfigJson,
+  AVAILABLE_EXT
 } from "./config";
 import { exec } from "child_process";
 
@@ -147,12 +148,22 @@ class MyApp {
               const paths = path.split("/");
               const dotLastIndex = paths[paths.length - 1].lastIndexOf(".");
 
+              // 拡張子がない場合はconfigで設定されているデフォルトの拡張子を返す
               if (dotLastIndex == 0) {
-                this.showCommonErrorBox("Invalid file name.");
-                this.applicationExit();
+                return this.config.defaultFormat;
               }
+
+              // 拡張子があるっぽい場合
               if (dotLastIndex >= 1) {
-                return path.slice(dotLastIndex + 1);
+                const ext = path.slice(dotLastIndex + 1);
+
+                // 動画っぽい拡張子かどうかを見る
+                if (AVAILABLE_EXT.some(EXT => ext.toLowerCase() === EXT)) {
+                  return ext;
+                } else {
+                  this.showCommonErrorBox("Invalid file name.");
+                  this.applicationExit();
+                }
               }
 
               return null;
