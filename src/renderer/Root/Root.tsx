@@ -6,6 +6,7 @@ import CutVideoRect from "./CutVideoRect/CutVideoRect";
 import { desktopCapturer, DesktopCapturerSource, ipcRenderer } from "electron";
 import SendBlobEvent from "../../utils/SendBlobEvent";
 import ShortCutKeyEvent from "../../utils/ShortCutKeyEvent";
+import useRegistIpcRendererListener from "../CustomHooks/useRegistIpcRendererListener";
 
 type Props = {
   width: number;
@@ -24,8 +25,9 @@ export default (props: Props) => {
 
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
 
-  useEffect(() => {
-    ipcRenderer.on("shortcut-key", (_: Electron.Event, e: ShortCutKeyEvent) => {
+  useRegistIpcRendererListener(
+    "shortcut-key",
+    (_: Electron.Event, e: ShortCutKeyEvent) => {
       switch (e.name) {
         // RecordingStop で録画終了
         case "RecordingStop": {
@@ -37,12 +39,9 @@ export default (props: Props) => {
           }
         }
       }
-    });
-
-    return () => {
-      ipcRenderer.removeAllListeners("shortcut-key");
-    };
-  }, [isRecording]);
+    },
+    [isRecording]
+  );
 
   const onMouseDown = useCallback(
     (rect: Rect) => {
