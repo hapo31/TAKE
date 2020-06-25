@@ -29,7 +29,7 @@ export default (props: Props) => {
       const recorder = new MediaRecorder(canvasRef.current.captureStream(), {
         mimeType: "video/webm;codecs=H264",
         audioBitsPerSecond: 0,
-        videoBitsPerSecond: 2500 * 1024
+        videoBitsPerSecond: 2500 * 1024,
       });
       recorder.addEventListener("dataavailable", async e => {
         if (canvasRef.current && recorder) {
@@ -37,7 +37,7 @@ export default (props: Props) => {
           props.onSave({
             width: canvasRef.current.width,
             height: canvasRef.current.height,
-            base64: base64
+            base64: base64,
           });
         }
       });

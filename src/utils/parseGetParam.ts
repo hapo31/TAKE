@@ -9,7 +9,7 @@ export default function(src?: string): { [x: string]: string } {
     .reduce((prev, param) => {
       const [name, val] = param.split("=");
       return Object.assign(prev, {
-        [decodeURIComponent(name)]: decodeURIComponent(val)
+        [decodeURIComponent(name)]: decodeURIComponent(val),
       });
     }, {});
 }

@@ -18,7 +18,7 @@ export default (props: Props) => {
     left: -1,
     top: -1,
     right: -1,
-    bottom: -1
+    bottom: -1,
   });
   const [isRecording, setIsRecording] = useState(false);
   const [saveVideo, setSaveVideo] = useState(false);
@@ -77,28 +77,31 @@ export default (props: Props) => {
 
       setRect(rect);
       ipcRenderer.send("window-hide");
-      desktopCapturer.getSources({ types: ["screen"] }).then(async sources => {
-        try {
-          // 型定義が間違っているので仕方なく as unknown as DesktopCapturerSource[] している
-          for (const source of (sources as unknown) as DesktopCapturerSource[]) {
-            if (source.display_id.toString() === window.name) {
-              const stream = await navigator.mediaDevices.getUserMedia({
-                audio: false,
-                video: {
-                  mandatory: {
-                    chromeMediaSource: "desktop",
-                    chromeMediaSourceId: source.id
-                  }
-                } as any
-              });
-              setVideoStream(stream);
-              setIsRecording(true);
+      desktopCapturer
+        .getSources({ types: ["screen"] })
+        .then(async (sources) => {
+          try {
+            for (const source of sources) {
+              if (source.display_id.toString() === window.name) {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                  audio: false,
+                  video: {
+                    mandatory: {
+                      chromeMediaSource: "desktop",
+                      chromeMediaSourceId: source.id,
+                    },
+                    // eslint-disable-next-line
+                } as any,
+                });
+                setVideoStream(stream);
+                setIsRecording(true);
+              }
             }
-          }
-        } catch (e) {
+          } catch (e) {
+            // eslint-disable-next-line
           console.error(e);
-        }
-      });
+          }
+        });
     },
     [saveVideo, isRecording]
   );
@@ -108,7 +111,7 @@ export default (props: Props) => {
     ipcRenderer.send("send-blob", {
       base64: ev.base64,
       width: ev.width,
-      height: ev.height
+      height: ev.height,
     });
     setSaveVideo(false);
     setIsRecording(false);
