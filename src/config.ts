@@ -59,5 +59,5 @@ export const AVAILABLE_EXT = [
   "flv",
   "mkv",
   "mpg",
-  "webm"
+  "webm",
 ];

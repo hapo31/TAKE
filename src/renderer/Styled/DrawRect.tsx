@@ -51,7 +51,7 @@ export default (props: Props) => {
       style={{
         display: "fixed",
         right: "-1px",
-        left: "-1px"
+        left: "-1px",
       }}
       width={`${props.width}px`}
       height={`${props.height}px`}

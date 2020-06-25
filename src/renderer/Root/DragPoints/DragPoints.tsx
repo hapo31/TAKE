@@ -23,7 +23,7 @@ export default (props: Props) => {
       left: e.pageX,
       // クリック開始時の右下は左上と同じ座標を返す
       right: e.pageX,
-      bottom: e.pageY
+      bottom: e.pageY,
     });
   };
 
@@ -33,7 +33,7 @@ export default (props: Props) => {
         top: startY,
         left: startX,
         right: e.pageX,
-        bottom: e.pageY
+        bottom: e.pageY,
       });
     }
   };
@@ -51,7 +51,7 @@ export default (props: Props) => {
       top: fixedStartY,
       left: fixedStartX,
       right: endX,
-      bottom: endY
+      bottom: endY,
     });
     setStartX(-1);
     setStartY(-1);
