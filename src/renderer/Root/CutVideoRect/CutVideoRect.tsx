@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import SendBlobEvent from "../../../utils/SendBlobEvent";
-import blobToBase64 from "../../../utils/blobToBase64";
 
 type Props = {
   left: number;
