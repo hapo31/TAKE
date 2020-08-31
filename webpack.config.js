@@ -42,8 +42,8 @@ var main = {
           from: path.resolve(__dirname, "src", "renderer", "index.html"),
         },
         {
-          from: path.resolve(__dirname, "images/*"),
-        },
+          from: path.resolve(__dirname, "images"),
+          to: path.resolve(outputPath, "images"),},
       ],
     }),
   ],
