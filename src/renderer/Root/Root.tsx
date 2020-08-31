@@ -107,12 +107,8 @@ export default (props: Props) => {
   );
 
   const onSave = useCallback((ev: SendBlobEvent) => {
-    const n = new Notification("cap-taro", { body: "Saving..." });
-    ipcRenderer.send("send-blob", {
-      base64: ev.base64,
-      width: ev.width,
-      height: ev.height,
-    });
+    // const n = new Notification("cap-taro", { body: "Saving..." });
+    ipcRenderer.send("send-blob", ev);
     setSaveVideo(false);
     setIsRecording(false);
     setVideoStream(null);

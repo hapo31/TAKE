@@ -1,5 +1,5 @@
 export default interface SendBlobEvent {
-  base64: string;
+  arrayBuffer: ArrayBuffer;
   width: number;
   height: number;
 }

@@ -33,11 +33,10 @@ export default (props: Props) => {
       });
       recorder.addEventListener("dataavailable", async (e) => {
         if (canvasRef.current && recorder) {
-          const base64 = await blobToBase64(e.data);
           props.onSave({
             width: canvasRef.current.width,
             height: canvasRef.current.height,
-            base64: base64,
+            arrayBuffer: await e.data.arrayBuffer(),
           });
         }
       });
