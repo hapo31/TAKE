@@ -31,7 +31,7 @@ export default (props: Props) => {
         audioBitsPerSecond: 0,
         videoBitsPerSecond: 2500 * 1024,
       });
-      recorder.addEventListener("dataavailable", async e => {
+      recorder.addEventListener("dataavailable", async (e) => {
         if (canvasRef.current && recorder) {
           const base64 = await blobToBase64(e.data);
           props.onSave({

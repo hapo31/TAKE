@@ -7,9 +7,9 @@ import {
   ipcMain,
   dialog,
   globalShortcut,
-  Tray
+  Tray,
 } from "electron";
-import fs from "fs";
+import fs, { promises as fsPromises } from "fs";
 import path from "path";
 import ffmpeg from "fluent-ffmpeg";
 import tempfile from "tempfile";
@@ -18,15 +18,15 @@ import {
   loadOrDefaultConfig,
   ApplicationConfig,
   createDefaultConfigJson,
-  AVAILABLE_EXT
 } from "./config";
 import { exec } from "child_process";
+import Logging from "./utils/Logging";
 
 class MyApp {
   private windowToDisplayIdMap: Map<number, number> = new Map();
   private windows: BrowserWindow[] | null = null;
   private app: App;
-  private mainURL: string = `file://${__dirname}/index.html`;
+  private mainURL = `file://${__dirname}/index.html`;
 
   private config: ApplicationConfig;
 
@@ -35,7 +35,7 @@ class MyApp {
   private readonly defaultConfig: ApplicationConfig = {
     useFFmpeg: false,
     ffmpegPath: false,
-    defaultFormat: "webm"
+    defaultFormat: "webm",
   };
 
   private tray: Tray | null = null;
@@ -53,22 +53,22 @@ class MyApp {
 
     this.config = this.defaultConfig;
 
-    process.on("uncaughtException", error => {
-      console.error(error);
+    process.on("uncaughtException", (error) => {
+      Logging.error(error);
       dialog.showErrorBox("error", error.message);
     });
   }
 
   private onReady = () => {
-    this.init().catch(err => {
-      console.error(err);
+    this.init().catch((err) => {
+      Logging.error(err);
       dialog.showErrorBox("error", err.message);
     });
   };
 
   private onActivated = () => {
     if (this.windows !== null) {
-      this.createWindows().catch(err => {
+      this.createWindows().catch((err) => {
         dialog.showErrorBox("error", err.message);
       });
     }
@@ -86,11 +86,9 @@ class MyApp {
       return;
     }
 
-    fs.exists("config.json", exists => {
-      if (!exists) {
-        createDefaultConfigJson("./config.json", this.defaultConfig);
-      }
-    });
+    if (!fs.existsSync("config.json")) {
+      createDefaultConfigJson("./config.json", this.defaultConfig);
+    }
 
     this.tray = new Tray(`${__dirname}/images/icon.ico`);
 
@@ -100,13 +98,13 @@ class MyApp {
       {
         icon: `${__dirname}/images/rec.png`,
         label: "Record",
-        click: _ => {
+        click: (_) => {
           this.createWindows();
-        }
+        },
       },
       {
         label: 'Open "config.json"',
-        click: _ => {
+        click: (_) => {
           switch (process.platform) {
             case "win32":
               exec("start ./config.json");
@@ -117,18 +115,18 @@ class MyApp {
             default:
               exec("vi ./config.json");
           }
-        }
+        },
       },
       {
         label: "Close",
-        click: _ => {
+        click: (_) => {
           this.applicationExit();
-        }
-      }
+        },
+      },
     ]);
     this.tray.setContextMenu(menu);
 
-    ipcMain.on("send-blob", (e: Electron.Event, data: SendBlobEvent) => {
+    ipcMain.on("send-blob", async (_: Electron.Event, data: SendBlobEvent) => {
       this.isShowingDialog = true;
       const fixedWidth =
         data.width % 16 === 0
@@ -141,89 +139,79 @@ class MyApp {
 
       const blob = Buffer.from(data.base64, "base64");
       if (this.windows && this.isDebug === false) {
-        this.windows.forEach(window => {
+        this.windows.forEach((window) => {
           if (window && !window.isDestroyed()) {
             window.setAlwaysOnTop(true);
           }
         });
       }
-      dialog.showSaveDialog(
-        null as any,
-        {
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+
+      const pathStr = (
+        await dialog.showSaveDialog(null as any, {
           title: "save",
-          defaultPath: "."
-        },
-        (pathStr?: string) => {
-          if (pathStr) {
-            if (!this.config.useFFmpeg) {
-              fs.writeFile(pathStr, blob, err => {
+          defaultPath: ".",
+        })
+      ).filePath;
+
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+      if (pathStr) {
+        if (this.config.useFFmpeg) {
+          const tmpfilename = tempfile(".mp4");
+
+          await fsPromises.writeFile(tmpfilename, blob);
+
+          const command = ffmpeg(tmpfilename);
+          const ext = path.extname(pathStr).slice(1);
+          // false とかがセットされてたら PATH が通っているものとして扱う的なことにしたい
+          if (this.config.ffmpegPath) {
+            command.setFfmpegPath(this.config.ffmpegPath);
+          }
+
+          // 条件が複雑だなぁ
+          // 拡張子がmp4であるか、デフォルトフォーマットがmp4ならTwitterで投稿が通る形式にする
+          if (
+            ext === "mp4" ||
+            (ext.length === 0 && this.config.defaultFormat === "mp4")
+          ) {
+            command
+              .size(`${fixedWidth}x${fixedHeight}`)
+              .videoCodec("libx264")
+              .addOption("-pix_fmt", "yuv420p");
+          }
+
+          command
+            .output(
+              ext.length !== 0
+                ? pathStr
+                : this.config.useFFmpeg
+                ? `${pathStr}.${ext}` // ffmpeg を使う設定なら入力に従う
+                : `${pathStr}.webm` // ffmpeg を使う設定でないなら強制的に.webm
+            )
+            .on("end", () => {
+              fs.unlink(tmpfilename, (err) => {
                 if (err) {
                   throw err;
                 }
                 this.allWindowClose();
               });
-            } else {
-              const tmpfilename = tempfile(".mp4");
-              fs.writeFile(tmpfilename, blob, async err => {
-                if (err) {
-                  throw err;
-                }
-                try {
-                  const command = ffmpeg(tmpfilename);
-                  const ext = path.extname(pathStr).slice(1);
-                  // false とかがセットされてたら PATH が通っているものとして扱う的なことにしたい
-                  if (this.config.ffmpegPath) {
-                    command.setFfmpegPath(this.config.ffmpegPath);
-                  }
-
-                  // 条件が複雑だなぁ
-                  // 拡張子がmp4であるか、デフォルトフォーマットがmp4ならTwitterで投稿が通る形式にする
-                  if (
-                    ext === "mp4" ||
-                    (ext.length === 0 && this.config.defaultFormat === "mp4")
-                  ) {
-                    command
-                      .size(`${fixedWidth}x${fixedHeight}`)
-                      .videoCodec("libx264")
-                      .addOption("-pix_fmt", "yuv420p");
-                  }
-
-                  command
-                    .output(
-                      ext.length !== 0
-                        ? pathStr
-                        : this.config.useFFmpeg
-                        ? `${pathStr}.${ext}` // ffmpeg を使う設定なら入力に従う
-                        : `${pathStr}.webm` // ffmpeg を使う設定でないなら強制的に.webm
-                    )
-                    .on("end", () => {
-                      fs.unlink(tmpfilename, err => {
-                        if (err) {
-                          throw err;
-                        }
-                        this.allWindowClose();
-                      });
-                    })
-                    .on("error", err => {
-                      throw err;
-                    })
-                    .run();
-                } catch (e) {
-                  throw err;
-                }
-              });
-            }
-          } else {
-            // キャンセル時の挙動
-            this.allWindowClose();
-          }
+            })
+            .on("error", (err) => {
+              throw err;
+            })
+            .run();
+        } else {
+          await fsPromises.writeFile(pathStr, blob);
         }
-      );
+      } else {
+        // キャンセル時の挙動
+        this.allWindowClose();
+      }
     });
 
     ipcMain.on("window-hide", (e: Electron.Event) => {
       if (this.windows && this.isDebug === false) {
-        this.windows.forEach(window => {
+        this.windows.forEach((window) => {
           if (window) {
             window.setOpacity(0.0);
             window.setAlwaysOnTop(false);
@@ -273,23 +261,23 @@ class MyApp {
       transparent: true,
       opacity: this.isDebug ? 1.0 : 0.3,
       webPreferences: {
-        nodeIntegration: true
-      }
+        nodeIntegration: true,
+      },
     };
 
     const displays = screen.getAllDisplays();
 
-    const windows = displays.map(display => {
+    const windows = displays.map((display) => {
       const bw = new BrowserWindow({
         ...display.bounds,
-        ...windowCommonOptions
+        ...windowCommonOptions,
       });
       // 各ウインドウから id を取得出来るように、 BrowserWindow と display の id を紐付ける
       this.windowToDisplayIdMap.set(bw.id, display.id);
       return bw;
     });
 
-    windows.forEach(window => {
+    windows.forEach((window) => {
       if (window) {
         window.loadURL(
           `${this.mainURL}?id=${this.windowToDisplayIdMap.get(window.id)}`
@@ -298,14 +286,14 @@ class MyApp {
     });
 
     if (this.isDebug) {
-      windows.forEach(window => {
+      windows.forEach((window) => {
         if (window) {
           window.webContents.openDevTools();
         }
       });
     }
 
-    windows.forEach(window => {
+    windows.forEach((window) => {
       if (window) {
         // 1個でもウインドウが手動で閉じられたらそのセッションは終了
         window.on("closed", () => {
@@ -318,7 +306,7 @@ class MyApp {
 
     globalShortcut.register("Escape", () => {
       if (this.windows && !this.isShowingDialog) {
-        this.windows.forEach(window => {
+        this.windows.forEach((window) => {
           if (window) {
             window.webContents.send("shortcut-key", { name: "RecordingStop" });
           }
@@ -336,7 +324,7 @@ class MyApp {
 
   private allWindowClose() {
     if (this.windows) {
-      this.windows.forEach(window => {
+      this.windows.forEach((window) => {
         if (window && !window.isDestroyed()) {
           window.close();
         }
