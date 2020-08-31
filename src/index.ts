@@ -22,6 +22,8 @@ import {
 import { exec } from "child_process";
 import Logging from "./utils/Logging";
 
+const isDev = process.env.NODE_ENV !== "production";
+
 class MyApp {
   private windowToDisplayIdMap: Map<number, number> = new Map();
   private windows: BrowserWindow[] | null = null;
@@ -41,8 +43,6 @@ class MyApp {
   private tray: Tray | null = null;
 
   private isRecording = false;
-
-  private isDebug = false;
 
   constructor(app: App) {
     this.app = app;
@@ -127,6 +127,14 @@ class MyApp {
     this.tray.setContextMenu(menu);
 
     ipcMain.on("send-blob", async (_: Electron.Event, data: SendBlobEvent) => {
+      if (isDev) {
+        this.windows?.forEach((window) => {
+          if (!window.isDestroyed()) {
+            window.close();
+          }
+        });
+      }
+
       this.isShowingDialog = true;
       const fixedWidth =
         data.width % 16 === 0
@@ -136,9 +144,8 @@ class MyApp {
         data.height % 16 === 0
           ? data.height
           : data.height + (16 - (data.height % 16));
-
-      const blob = Buffer.from(data.base64, "base64");
-      if (this.windows && this.isDebug === false) {
+      const buffer = Buffer.from(data.arrayBuffer);
+      if (this.windows && isDev === false) {
         this.windows.forEach((window) => {
           if (window && !window.isDestroyed()) {
             window.setAlwaysOnTop(true);
@@ -159,10 +166,12 @@ class MyApp {
         if (this.config.useFFmpeg) {
           const tmpfilename = tempfile(".mp4");
 
-          await fsPromises.writeFile(tmpfilename, blob);
+          await fsPromises.writeFile(tmpfilename, buffer);
 
           const command = ffmpeg(tmpfilename);
-          const ext = path.extname(pathStr).slice(1);
+          const extRaw = path.extname(pathStr).slice(1);
+          const ext = extRaw || this.config.defaultFormat;
+
           // false とかがセットされてたら PATH が通っているものとして扱う的なことにしたい
           if (this.config.ffmpegPath) {
             command.setFfmpegPath(this.config.ffmpegPath);
@@ -182,10 +191,10 @@ class MyApp {
 
           command
             .output(
-              ext.length !== 0
+              extRaw.length !== 0
                 ? pathStr
-                : this.config.useFFmpeg
-                ? `${pathStr}.${ext}` // ffmpeg を使う設定なら入力に従う
+                : this.config.useFFmpeg // ffmpeg を使う設定なら入力に従う
+                ? `${pathStr}.${ext}`
                 : `${pathStr}.webm` // ffmpeg を使う設定でないなら強制的に.webm
             )
             .on("end", () => {
@@ -201,7 +210,7 @@ class MyApp {
             })
             .run();
         } else {
-          await fsPromises.writeFile(pathStr, blob);
+          await fsPromises.writeFile(pathStr, buffer);
         }
       } else {
         // キャンセル時の挙動
@@ -210,7 +219,7 @@ class MyApp {
     });
 
     ipcMain.on("window-hide", (e: Electron.Event) => {
-      if (this.windows && this.isDebug === false) {
+      if (this.windows && isDev === false) {
         this.windows.forEach((window) => {
           if (window) {
             window.setOpacity(0.0);
@@ -259,7 +268,7 @@ class MyApp {
       movable: false,
       skipTaskbar: true,
       transparent: true,
-      opacity: this.isDebug ? 1.0 : 0.3,
+      opacity: isDev ? 1.0 : 0.3,
       webPreferences: {
         nodeIntegration: true,
       },
@@ -285,7 +294,7 @@ class MyApp {
       }
     });
 
-    if (this.isDebug) {
+    if (isDev) {
       windows.forEach((window) => {
         if (window) {
           window.webContents.openDevTools();
