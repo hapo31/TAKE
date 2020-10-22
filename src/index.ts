@@ -24,6 +24,14 @@ import Logging from "./utils/Logging";
 
 const isDev = process.env.NODE_ENV !== "production";
 
+console.log({ mode: process.env.NODE_ENV });
+
+if (!isDev) {
+  process.on("uncaughtException", () => {
+    process.exit();
+  });
+}
+
 class MyApp {
   private windowToDisplayIdMap: Map<number, number> = new Map();
   private windows: BrowserWindow[] | null = null;
@@ -127,13 +135,11 @@ class MyApp {
     this.tray.setContextMenu(menu);
 
     ipcMain.on("send-blob", async (_: Electron.Event, data: SendBlobEvent) => {
-      if (isDev) {
-        this.windows?.forEach((window) => {
-          if (!window.isDestroyed()) {
-            window.close();
-          }
-        });
-      }
+      this.windows?.forEach((window) => {
+        if (window && !window.isDestroyed()) {
+          window.close();
+        }
+      });
 
       this.isShowingDialog = true;
       const fixedWidth =
@@ -170,19 +176,17 @@ class MyApp {
 
           const command = ffmpeg(tmpfilename);
           const extRaw = path.extname(pathStr).slice(1);
+          const isContainsExt = extRaw.length !== 0;
           const ext = extRaw || this.config.defaultFormat;
+
+          const fileName = !isContainsExt ? `${pathStr}.${ext}` : pathStr;
 
           // false とかがセットされてたら PATH が通っているものとして扱う的なことにしたい
           if (this.config.ffmpegPath) {
             command.setFfmpegPath(this.config.ffmpegPath);
           }
 
-          // 条件が複雑だなぁ
-          // 拡張子がmp4であるか、デフォルトフォーマットがmp4ならTwitterで投稿が通る形式にする
-          if (
-            ext === "mp4" ||
-            (ext.length === 0 && this.config.defaultFormat === "mp4")
-          ) {
+          if (ext === "mp4") {
             command
               .size(`${fixedWidth}x${fixedHeight}`)
               .videoCodec("libx264")
@@ -190,13 +194,7 @@ class MyApp {
           }
 
           command
-            .output(
-              extRaw.length !== 0
-                ? pathStr
-                : this.config.useFFmpeg // ffmpeg を使う設定なら入力に従う
-                ? `${pathStr}.${ext}`
-                : `${pathStr}.webm` // ffmpeg を使う設定でないなら強制的に.webm
-            )
+            .output(fileName)
             .on("end", () => {
               fs.unlink(tmpfilename, (err) => {
                 if (err) {
@@ -210,7 +208,10 @@ class MyApp {
             })
             .run();
         } else {
-          await fsPromises.writeFile(pathStr, buffer);
+          const extRaw = path.extname(pathStr).slice(1);
+          const isContainsExt = extRaw.length !== 0;
+          const fileName = !isContainsExt ? `${pathStr}.webm` : pathStr;
+          await fsPromises.writeFile(fileName, buffer);
         }
       } else {
         // キャンセル時の挙動
@@ -268,7 +269,7 @@ class MyApp {
       movable: false,
       skipTaskbar: true,
       transparent: true,
-      opacity: isDev ? 1.0 : 0.3,
+      opacity: 0.3,
       webPreferences: {
         nodeIntegration: true,
       },
@@ -294,14 +295,6 @@ class MyApp {
       }
     });
 
-    if (isDev) {
-      windows.forEach((window) => {
-        if (window) {
-          window.webContents.openDevTools();
-        }
-      });
-    }
-
     windows.forEach((window) => {
       if (window) {
         // 1個でもウインドウが手動で閉じられたらそのセッションは終了
@@ -315,11 +308,21 @@ class MyApp {
 
     globalShortcut.register("Escape", () => {
       if (this.windows && !this.isShowingDialog) {
-        this.windows.forEach((window) => {
-          if (window) {
-            window.webContents.send("shortcut-key", { name: "RecordingStop" });
-          }
-        });
+        if (this.isRecording) {
+          this.windows.forEach((window) => {
+            if (window && !window.isDestroyed()) {
+              window.webContents.send("shortcut-key", {
+                name: "RecordingStop",
+              });
+            }
+          });
+        } else {
+          this.windows.forEach((window) => {
+            if (window && !window.isDestroyed()) {
+              window.close();
+            }
+          });
+        }
       }
     });
 

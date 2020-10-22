@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import DragPoints from "./DragPoints/DragPoints";
 import DrawRect from "../Styled/DrawRect";
 import { Rect } from "../../utils/types";
 import CutVideoRect from "./CutVideoRect/CutVideoRect";
-import { desktopCapturer, DesktopCapturerSource, ipcRenderer } from "electron";
+import { desktopCapturer, ipcRenderer } from "electron";
 import SendBlobEvent from "../../utils/SendBlobEvent";
 import ShortCutKeyEvent from "../../utils/ShortCutKeyEvent";
-import useRegistIpcRendererListener from "../CustomHooks/useRegistIpcRendererListener";
 
 type Props = {
   width: number;
@@ -25,23 +24,17 @@ export default (props: Props) => {
 
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
 
-  useRegistIpcRendererListener(
-    "shortcut-key",
-    (_: Electron.Event, e: ShortCutKeyEvent) => {
+  useEffect(() => {
+    ipcRenderer.on("shortcut-key", (_: Electron.Event, e: ShortCutKeyEvent) => {
       switch (e.name) {
         // RecordingStop で録画終了
         case "RecordingStop": {
-          if (isRecording) {
-            setSaveVideo(true);
-          } else {
-            // 録画中でなければウインドウを閉じる
-            window.close();
-          }
+          setSaveVideo(true);
+          break;
         }
       }
-    },
-    [isRecording]
-  );
+    });
+  }, []);
 
   const onMouseDown = useCallback(
     (rect: Rect) => {
@@ -74,7 +67,6 @@ export default (props: Props) => {
       if ((rect.right - rect.left) * (rect.bottom - rect.top) < 10) {
         return;
       }
-
       setRect(rect);
       ipcRenderer.send("window-hide");
       desktopCapturer
@@ -107,7 +99,6 @@ export default (props: Props) => {
   );
 
   const onSave = useCallback((ev: SendBlobEvent) => {
-    // const n = new Notification("cap-taro", { body: "Saving..." });
     ipcRenderer.send("send-blob", ev);
     setSaveVideo(false);
     setIsRecording(false);
@@ -115,7 +106,6 @@ export default (props: Props) => {
   }, []);
 
   const onStart = useCallback(() => {
-    const n = new Notification("cap-taro", { body: "Record started." });
     ipcRenderer.send("start-recording");
   }, []);
 

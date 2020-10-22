@@ -6,7 +6,7 @@
     "start": "electron ./dist",
     "format": "eslint --fix \"./src/**/*.{ts,tsx}\" ",
     "watch": "webpack --watch --config ./webpack.config.js --mode development",
-    "build:win": "cross-env NODE_ENV=production webpack --config ./webpack.config.js --mode production && copy package.json dist\\ && electron-packager ./dist TAKE --platform=win32 --arch=x64 --icon=./images/icon.ico --electron-version=5.0.2 --overwrite && copy readme.md TAKE-win32-x64\\readme.txt"
+    "build:win": "cross-env NODE_ENV=production webpack --config ./webpack.config.js --mode production && copy package.json dist\\ && electron-packager ./dist TAKE --platform=win32 --arch=x64 --icon=./images/icon.ico --electron-version=10.1.2 --overwrite && copy readme.md TAKE-win32-x64\\readme.txt"
   },
   "devDependencies": {
     "@types/fluent-ffmpeg": "^2.1.9",
@@ -17,8 +17,8 @@
     "@typescript-eslint/parser": "~3.4.0",
     "copy-webpack-plugin": "~6.0.2",
     "cross-env": "~7.0.2",
-    "electron": "~9.0.5",
-    "electron-packager": "~14.2.1",
+    "electron": "~10.1.2",
+    "electron-packager": "~15.1.0",
     "eslint": "~7.3.1",
     "eslint-config-prettier": "^6.11.0",
     "eslint-plugin-prettier": "^3.1.3",
