@@ -200,7 +200,6 @@ class MyApp {
                 if (err) {
                   throw err;
                 }
-                this.allWindowClose();
               });
             })
             .on("error", (err) => {
@@ -213,10 +212,8 @@ class MyApp {
           const fileName = !isContainsExt ? `${pathStr}.webm` : pathStr;
           await fsPromises.writeFile(fileName, buffer);
         }
-      } else {
-        // キャンセル時の挙動
-        this.allWindowClose();
       }
+      this.allWindowClose();
     });
 
     ipcMain.on("window-hide", (e: Electron.Event) => {
@@ -322,6 +319,7 @@ class MyApp {
               window.close();
             }
           });
+          this.allWindowClose();
         }
       }
     });
